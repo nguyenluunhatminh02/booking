@@ -31,6 +31,7 @@ import { OutboxModule } from './modules/outbox/outbox.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { QueueModule } from './core/queue/queue.module';
 import { TasksModule } from './core/tasks/tasks.module';
+import { OutboxProcessorModule } from './modules/outbox/outbox-processor.module';
 
 const backgroundJobsEnabled =
   process.env.ENABLE_BACKGROUND_JOBS === 'true' ||
@@ -77,7 +78,9 @@ const backgroundJobsEnabled =
     PrismaModule,
     RateLimitModule,
     // Background Jobs & Scheduling (enable when Redis/queues are configured)
-    ...(backgroundJobsEnabled ? [QueueModule, TasksModule] : []),
+    ...(backgroundJobsEnabled
+      ? [QueueModule, TasksModule, OutboxProcessorModule]
+      : []),
     // Feature Modules
     AuthModule,
     UsersModule,

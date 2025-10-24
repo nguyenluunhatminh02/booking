@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { OutboxStatus } from '@prisma/client';
 
@@ -9,6 +9,8 @@ export interface OutboxPayload {
 
 @Injectable()
 export class OutboxEventService {
+  private readonly logger = new Logger(OutboxEventService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -83,6 +85,8 @@ export class OutboxEventService {
    * Retry event bị failed
    */
   async retryEvent(eventId: string) {
+    this.logger.log(`Retrying outbox event ${eventId}`);
+
     return this.prisma.outboxEvent.update({
       where: { id: eventId },
       data: {
@@ -98,6 +102,10 @@ export class OutboxEventService {
    */
   async cleanupSentEvents(olderThanHours: number = 24) {
     const cutoffTime = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+
+    this.logger.log(
+      `Cleaning up sent outbox events older than ${olderThanHours}h (cutoff: ${cutoffTime.toISOString()})`,
+    );
 
     return this.prisma.outboxEvent.deleteMany({
       where: {

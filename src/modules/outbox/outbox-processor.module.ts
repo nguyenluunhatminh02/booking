@@ -1,19 +1,22 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@/prisma/prisma.module';
+import { OutboxWorker } from './outbox.worker';
 import { OutboxDispatcher } from './outbox.dispatcher';
 import { OutboxEventService } from './outbox-event.service';
-import { OutboxController } from './outbox.controller';
 import { UserEventsHandler } from './handlers/user-events.handler';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { OutboxProcessorService } from './outbox-processor.service';
 import { OutboxQueueModule } from './outbox-queue.module';
 
 @Module({
   imports: [OutboxQueueModule, PrismaModule],
   providers: [
+    OutboxWorker,
     OutboxDispatcher,
     OutboxEventService,
     UserEventsHandler,
+    OutboxProcessorService,
   ],
-  controllers: [OutboxController],
-  exports: [OutboxDispatcher, OutboxEventService],
+  exports: [OutboxProcessorService],
 })
-export class OutboxModule {}
+export class OutboxProcessorModule {}
+

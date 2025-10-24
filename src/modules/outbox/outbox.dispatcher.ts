@@ -68,7 +68,17 @@ export class OutboxDispatcher {
 
       this.logger.debug(`Enqueued outbox event ${outboxId}`);
     } catch (error) {
-      this.logger.error(`Failed to dispatch outbox event ${outboxId}:`, error);
+      const message = error instanceof Error ? error.message : String(error);
+      await this.prisma.outboxEvent.update({
+        where: { id: outboxId },
+        data: {
+          status: OutboxStatus.FAILED,
+          attempts: { increment: 1 },
+          error: message.slice(0, 500),
+        },
+      });
+
+      this.logger.error(`Failed to dispatch outbox event ${outboxId}: ${message}`);
       throw error;
     }
   }
