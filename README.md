@@ -107,6 +107,7 @@ cp .env.example .env
 # - DATABASE_URL (PostgreSQL connection)
 # - SENDGRID_API_KEY (or leave empty for dev mode)
 # - REDIS_URL (or leave empty to use in-memory)
+# - ENABLE_BACKGROUND_JOBS (set to true to enable BullMQ queues & cron tasks)
 ```
 
 3. **Database Setup**
@@ -130,6 +131,8 @@ npm run dev
 npm run build
 npm run start:prod
 ```
+
+> ℹ️ **Background jobs** (BullMQ queues and scheduled cleanup tasks) stay disabled by default. Once Redis is available, set `ENABLE_BACKGROUND_JOBS=true` in your environment to load the `QueueModule` and `TasksModule` automatically.
 
 5. **Test the API**
 ```bash

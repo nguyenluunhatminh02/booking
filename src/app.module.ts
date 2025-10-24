@@ -29,6 +29,12 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { AclModule } from './modules/acl/acl.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { QueueModule } from './core/queue/queue.module';
+import { TasksModule } from './core/tasks/tasks.module';
+
+const backgroundJobsEnabled =
+  process.env.ENABLE_BACKGROUND_JOBS === 'true' ||
+  (!!process.env.REDIS_URL && process.env.ENABLE_BACKGROUND_JOBS !== 'false');
 
 @Module({
   imports: [
@@ -70,9 +76,8 @@ import { BookingModule } from './modules/booking/booking.module';
     }),
     PrismaModule,
     RateLimitModule,
-    // Background Jobs & Scheduling (disabled during debugging if Redis is not available)
-    // QueueModule,
-    // TasksModule,
+    // Background Jobs & Scheduling (enable when Redis/queues are configured)
+    ...(backgroundJobsEnabled ? [QueueModule, TasksModule] : []),
     // Feature Modules
     AuthModule,
     UsersModule,
