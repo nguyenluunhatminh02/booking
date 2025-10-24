@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { EmailService } from '@/common/services/email.service';
+import { EmailService } from '@/common/services';
 
 export interface EmailJobData {
   type: 'welcome' | 'verification' | 'password-reset' | 'password-changed';

@@ -20,13 +20,13 @@ import {
   hashPassword,
   generateToken,
   hashToken,
-} from '@/common/utils/crypto.util';
+} from '@/common/utils';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { appConfig } from '@/config/app/app.config';
 import { appendFileSync } from 'fs';
-import { EmailService } from '@/common/services/email.service';
+import { EmailService } from '@/common/services';
 
 @Injectable()
 export class AuthService {

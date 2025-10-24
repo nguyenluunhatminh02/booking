@@ -13,11 +13,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { FilesService } from '@/modules/files/files.service';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import {
-  Idempotent,
-  IdempotencyInterceptor,
-} from '@/common/interceptors/idempotency.interceptor';
+import { JwtAuthGuard } from '@/common/guards';
+import { Idempotent, IdempotencyInterceptor } from '@/common/interceptors';
 
 import {
   PresignPutDto,
@@ -26,7 +23,7 @@ import {
   DeleteFileDto,
   FileIdParamDto,
   DownloadQueryDto,
-} from '@/common/dto/upload.dto';
+} from '@/common/dto';
 
 @ApiTags('Files')
 @ApiBearerAuth()

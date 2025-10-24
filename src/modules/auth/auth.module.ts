@@ -10,7 +10,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { PrismaModule } from '@/prisma/prisma.module';
-import { EmailService } from '@/common/services/email.service';
+import { EmailService } from '@/common/services';
 
 @Module({
   imports: [

@@ -14,9 +14,8 @@ import {
   ApiOkResponse,
   ApiCreatedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard, RolesGuard } from '@/common/guards';
+import { Roles } from '@/common/decorators';
 import { SystemRole } from '@prisma/client';
 import { PermissionsService } from './permissions.service';
 import { CreatePermissionDto } from './dto';
