@@ -8,8 +8,8 @@ import {
 import { Observable } from 'rxjs';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
-import { JwtAuthGuard } from '@/common';
-import { IdempotencyInterceptor } from '@/common/interceptors/idempotency.interceptor';
+import { JwtAuthGuard } from '@/common/guards';
+import { IdempotencyInterceptor } from '@/common/interceptors';
 
 class AllowAuthGuard implements CanActivate {
   canActivate(_ctx: ExecutionContext): boolean {

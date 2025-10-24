@@ -1,6 +1,6 @@
 import { Body, BadRequestException, Controller, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EmailService } from '@/common/services/email.service';
+import { EmailService } from '@/common/services';
 
 @Controller('debug/email')
 export class DebugEmailController {

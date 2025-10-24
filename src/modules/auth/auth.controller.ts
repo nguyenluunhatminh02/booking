@@ -18,13 +18,10 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { Public } from '@/common/decorators/public.decorator';
+import { Public } from '@/common/decorators';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RateLimit } from '@/core/rate-limit/rate-limit.decorator';
-import {
-  ApiOperationDecorator,
-  ApiResponseType,
-} from '@/common/decorators/api-operation.decorator';
+import { ApiOperationDecorator, ApiResponseType } from '@/common/decorators';
 
 @ApiTags('Authentication')
 @Controller('auth')

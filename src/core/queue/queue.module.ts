@@ -5,7 +5,7 @@ import { EmailProcessor } from './processors/email.processor';
 import { FilesProcessor } from './processors/files.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
 import { QueueService } from './queue.service';
-import { EmailService } from '@/common/services/email.service';
+import { EmailService } from '@/common/services';
 import { FilesService } from '@/modules/files/files.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 

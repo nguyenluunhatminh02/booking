@@ -16,8 +16,8 @@ import {
   ApiOkResponse,
   ApiCreatedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/common/guards';
+import { CurrentUser } from '@/common/decorators';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto, UpdateBookingDto, CancelBookingDto } from './dto';
 

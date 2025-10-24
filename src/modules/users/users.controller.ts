@@ -15,12 +15,12 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationDto } from '@/common/dto/pagination.dto';
+import { PaginationDto } from '@/common/dto';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { RolesGuard } from '@/common/guards/roles.guard';
+import { Roles } from '@/common/decorators';
+import { RolesGuard } from '@/common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ParseUUIDPipe } from '@/common/pipes/parse-uuid.pipe';
+import { ParseUUIDPipe } from '@/common/pipes';
 import {
   ApiTags,
   ApiOperation,

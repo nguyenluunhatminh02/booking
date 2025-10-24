@@ -25,8 +25,8 @@ import { Readable } from 'stream';
 import { FilesController } from '@/modules/files/files.controller';
 import { FilesService } from '@/modules/files/files.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { JwtAuthGuard } from '@/common';
-import { IdempotencyInterceptor } from '@/common/interceptors/idempotency.interceptor';
+import { JwtAuthGuard } from '@/common/guards';
+import { IdempotencyInterceptor } from '@/common/interceptors';
 
 const s3Mock = mockClient(S3Client);
 

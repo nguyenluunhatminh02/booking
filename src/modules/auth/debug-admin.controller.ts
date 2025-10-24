@@ -4,7 +4,7 @@ import { UsersService } from '../users/users.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { SystemRole } from '@prisma/client';
-import { hashToken } from '@/common/utils/crypto.util';
+import { hashToken } from '@/common/utils';
 
 @Controller('debug/admin')
 export class DebugAdminController {

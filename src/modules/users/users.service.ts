@@ -6,9 +6,9 @@ import { ConfigType } from '@nestjs/config';
 import { appConfig } from '@/config/app/app.config';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { hashPassword } from '@/common/utils/crypto.util';
+import { hashPassword } from '@/common/utils';
 import { Prisma, User, SystemRole } from '@prisma/client';
-import { PaginationDto } from '@/common/dto/pagination.dto';
+import { PaginationDto } from '@/common/dto';
 
 @Injectable()
 export class UsersService {
