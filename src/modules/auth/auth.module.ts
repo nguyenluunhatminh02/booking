@@ -10,12 +10,13 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { PrismaModule } from '@/prisma/prisma.module';
-import { EmailService } from '@/common/services/email.service';
+import { EmailModule } from '@/common/email/email.module';
 
 @Module({
   imports: [
     UsersModule,
     PrismaModule,
+    EmailModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,7 +33,7 @@ import { EmailService } from '@/common/services/email.service';
     }),
   ],
   controllers: [AuthController, DebugEmailController, DebugAdminController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, EmailService],
+  providers: [AuthService, JwtStrategy, LocalStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

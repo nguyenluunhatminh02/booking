@@ -5,7 +5,7 @@ import { EmailProcessor } from './processors/email.processor';
 import { FilesProcessor } from './processors/files.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
 import { QueueService } from './queue.service';
-import { EmailService } from '@/common/services/email.service';
+import { EmailModule } from '@/common/email/email.module';
 import { FilesService } from '@/modules/files/files.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 
@@ -21,6 +21,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
 @Module({
   imports: [
     PrismaModule,
+    EmailModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -68,7 +69,6 @@ import { PrismaModule } from '@/prisma/prisma.module';
     EmailProcessor,
     FilesProcessor,
     CleanupProcessor,
-    EmailService,
     FilesService,
   ],
   exports: [QueueService, BullModule],
