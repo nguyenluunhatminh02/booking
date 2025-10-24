@@ -1,0 +1,24 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "decorators": true,
+      "dynamicImport": true,
+      "classPrivateMethod": true,
+      "classPrivateProperty": true,
+      "classProperty": true
+    },
+    "transform": {
+      "decoratorMetadata": true,
+       "legacyDecorator": true
+    },
+    "target": "es2021",
+    "externalHelpers": false,
+    "keepClassNames": true
+  },
+  "module": {
+    "type": "commonjs"
+  },
+  "minify": false,
+  "sourceMaps": true
+}

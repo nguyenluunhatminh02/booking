@@ -1,0 +1,353 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ===== Enums =====
+//
+enum SystemRole { // enum hệ thống gán trực tiếp trên bảng users
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum FileStatus {
+  UPLOADING
+  READY
+  FAILED
+}
+
+enum AttachmentEntity {
+  MESSAGE
+  POST
+  COMMENT
+  OTHER
+}
+
+enum OutboxStatus {
+  PENDING     // mới ghi trong tx, chưa enqueue
+  ENQUEUED    // đã đẩy vào queue (BullMQ)
+  SENT        // đã xử lý OK
+  FAILED      // xử lý lỗi (sẽ retry)
+  CANCELLED
+}
+
+enum ACLEffect {
+  ALLOW
+  DENY
+}
+
+enum BookingStatus {
+  DRAFT         // Booking đang chỉnh sửa
+  PENDING       // Chờ xác nhận
+  CONFIRMED     // Đã xác nhận
+  IN_PROGRESS   // Đang diễn ra
+  COMPLETED     // Hoàn thành
+  CANCELLED     // Đã hủy
+  REFUND_PENDING // Chờ hoàn tiền
+  REFUNDED      // Đã hoàn tiền
+}
+
+//
+// ===== Core Models =====
+//
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique @db.Citext
+  password      String
+  firstName     String
+  lastName      String
+  role          SystemRole        @default(USER)  // enum hệ thống cơ bản
+  isActive      Boolean           @default(true)
+  emailVerified Boolean           @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relations
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  userRoles          UserRole[]         // RBAC gán role động
+  resourceACL        ResourceACL[]
+  bookings           Booking[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique                  // lưu hash thay vì token thô
+  userId     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  // (optional) audit
+  ip         String?
+  userAgent  String?
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+  @@index([userId, revokedAt])               // truy vấn token còn hiệu lực nhanh
+  @@map("refresh_tokens")
+}
+
+model VerificationToken {
+  id         String     @id @default(cuid())
+  tokenHash  String     @unique                 // lưu hash
+  type       TokenType
+  userId     String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime   @default(now())
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([expiresAt])
+  // Partial unique "1 token active mỗi (userId,type)" sẽ tạo bằng SQL migration
+  @@map("verification_tokens")
+}
+
+model FileObject {
+  id           String      @id @default(uuid())
+  bucket       String
+  key          String      @unique
+  mime         String
+  size         BigInt?
+  status       FileStatus  @default(UPLOADING)
+  thumbKey     String?
+  width        Int?
+  height       Int?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // === audit/enforce (khớp FilesService) ===
+  declaredMime String?
+  sniffedMime  String?
+  maxBytes     BigInt?
+  etag         String?
+  completedAt  DateTime?
+
+  // Relations
+  attachments  FileAttachment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("file_objects")
+}
+
+model FileAttachment {
+  id          String          @id @default(uuid())
+  fileId      String
+  entityType  AttachmentEntity
+  entityId    String
+  createdAt   DateTime        @default(now())
+
+  // Relations
+  file        FileObject      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, entityType, entityId])   // chống gắn trùng 1 file vào cùng entity
+  @@index([fileId])
+  @@index([entityType, entityId])
+  @@map("file_attachments")
+}
+
+model Idempotency {
+  id              String    @id @default(uuid())
+  key             String    @unique
+  method          String
+  path            String
+  userId          String?
+  status          String    @default("PENDING") // PENDING|COMPLETED|FAILED
+  requestPayload  Json?
+  responsePayload Json?
+  retries         Int       @default(0)
+
+  // Mở rộng: claim/TTL/phát hiện trùng nội dung
+  lockedAt        DateTime?
+  lockedBy        String?
+  expiresAt       DateTime?
+  requestHash     String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@map("idempotency")
+}
+
+model OutboxEvent {
+  id         String       @id @default(cuid())
+  topic      String                       // ví dụ: "user.events", "order.events"
+  key        String                       // partition/dedupe key (vd: userId/orderId)
+  payload    Json                         // { type: "...", ... }
+  status     OutboxStatus @default(PENDING)
+  attempts   Int          @default(0)
+  error      String?
+  createdAt  DateTime     @default(now())
+  enqueuedAt DateTime?
+  sentAt     DateTime?
+
+  // (tuỳ chọn) chặn enqueue trùng từ nghiệp vụ
+  dedupeKey  String?      @unique
+
+  @@index([status, createdAt])
+  @@index([topic, status, createdAt])
+  @@index([enqueuedAt])
+  @@index([sentAt])
+  @@map("outbox_events")
+}
+
+//
+// ===== RBAC & ACL =====
+//
+model Role {                   // RBAC Role (model), KHÁC với enum SystemRole
+  id        String   @id @default(uuid())
+  name      String   @unique
+  desc      String?
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  rolePerms RolePermission[]
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  action    String
+  subject   String
+  desc      String?
+  createdAt DateTime @default(now())
+
+  rolePerms RolePermission[]
+
+  @@unique([action, subject], name: "action_subject")
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role        Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission  Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id          String    @id @default(uuid())
+  userId      String
+  roleId      String
+  effectiveAt DateTime?
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId], name: "user_role_unique") // nếu cần time-range, thêm EXCLUDE bằng SQL
+  @@map("user_roles")
+}
+
+model ResourceACL {
+  id           String    @id @default(uuid())
+  userId       String
+  resourceType String
+  resourceId   String
+  action       String
+  effect       ACLEffect @default(ALLOW)
+  conditions   Json?     // ABAC nhẹ (tùy chọn)
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceType, resourceId, action], name: "user_resource_action_unique")
+  @@index([resourceType, resourceId])
+  @@index([userId, action]) // truy vấn nhanh theo user + action
+  @@map("resource_acl")
+}
+
+//
+// ===== Booking System =====
+//
+model Booking {
+  id            String        @id @default(cuid())
+  userId        String        // Người tạo booking
+  status        BookingStatus @default(DRAFT)
+
+  // Booking info
+  title         String
+  description   String?
+  notes         String?
+
+  // Pricing
+  amount        Decimal       @db.Decimal(12, 2)       // Giá tiền
+  currency      String        @default("VND")          // Tiền tệ
+  discount      Decimal?      @db.Decimal(12, 2)       // Giảm giá
+  tax           Decimal?      @db.Decimal(12, 2)       // Thuế
+  finalAmount   Decimal       @db.Decimal(12, 2)       // Số tiền cuối cùng
+
+  // Time info
+  startTime     DateTime
+  endTime       DateTime
+  duration      Int?                                   // Duration in minutes (calculated)
+  timezone      String?       @default("Asia/Ho_Chi_Minh")
+
+  // Metadata
+  metadata      Json?
+  tags          String[]      @default([])
+
+  // Status tracking
+  confirmedAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+
+  // Refund info
+  refundAmount  Decimal?      @db.Decimal(12, 2)
+  refundReason  String?
+  refundedAt    DateTime?
+
+  // Audit
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([startTime])
+  @@index([userId, status])
+  @@map("bookings")
+}
+

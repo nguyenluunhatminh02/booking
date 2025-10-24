@@ -1,0 +1,11 @@
+{
+  "watch": ["src", ".env"],
+  "ext": "ts,js,json",
+  "ignore": ["dist", "node_modules"],
+  "exec": "node --enable-source-maps -r source-map-support/register -r dotenv/config -r reflect-metadata -r tsconfig-paths/register -r @swc/register src/main.ts",
+  "env": {
+    "TZ": "Asia/Ho_Chi_Minh",
+    "NODE_OPTIONS": "--trace-warnings --unhandled-rejections=strict",
+    "FORCE_COLOR": "1"
+  }
+}

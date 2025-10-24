@@ -1,0 +1,22 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.[tj]sx?$": [
+      "ts-jest",
+      {
+        "tsconfig": "./tsconfig.spec.json"
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^file-type$": "<rootDir>/test/mocks/file-type.ts",
+    "^@aws-sdk/s3-request-presigner$": "<rootDir>/test/mocks/s3-request-presigner.ts"
+  },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!uuid)/"
+  ]
+}

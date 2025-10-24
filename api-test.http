@@ -1,0 +1,428 @@
+###############################################
+# NestJS Redis Template - API Testing
+# Base URL: http://localhost:3000
+###############################################
+
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+# Variables (will be set after requests)
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWd3MHd2djkwMDAwdWt4MGk1MTA4b3lnIiwiZW1haWwiOiJrcm9ub3NzczIwMDJAZ21haWwuY29tIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NjA3NzY1ODAsImV4cCI6MTc2MDg2Mjk4MH0.Gx6w_ScqgiEDHA7cfyj61BAZV0SPF3cgsJA98ChaQ5M
+@refreshToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWd3MHd2djkwMDAwdWt4MGk1MTA4b3lnIiwiZW1haWwiOiJrcm9ub3NzczIwMDJAZ21haWwuY29tIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NjA3NzY1ODAsImV4cCI6MTc2MTM4MTM4MH0.1uDSm3MEcmLyn3hly5VnJCZlTdcH7xqiUQhwWvdpTOI
+@userId = user_id_here
+@fileId = file_id_here
+
+###############################################
+# 1. AUTHENTICATION
+###############################################
+
+### 1.1 Register new user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "kronosss2002@gmail.com",
+  "password": "Test123!",
+  "confirmPassword":"Test123!",
+  "name": "Test User"
+}
+
+### 1.2 Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+ "email": "kronosss2002@gmail.com",
+ "password": "Test123!"
+}
+
+### 1.3 Refresh token
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 1.4 Logout
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 1.5 Verify email (GET request with token in query)
+GET {{baseUrl}}/auth/verify-email?token=0239aa88ec18a7c71be1331e47347d3ad2e5dd05085ac646336e926f46a8d87e
+
+### 1.6 Forgot password
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: {{contentType}}
+
+{
+  "email": "kronosss2002@gmail.com"
+}
+
+### 1.7 Reset password
+POST {{baseUrl}}/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "2836801238b481d9910c688d2d712b1e0bd7988991d71c5e94ef425fb3ea47dd",
+  "password": "NewPassword123s!",
+  "confirmPassword": "NewPassword123s!"
+}
+
+###############################################
+# 2. USERS MANAGEMENT (Requires Auth)
+###############################################
+
+### 2.1 Get current user profile
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### DEBUG: Create admin user & get tokens (development only)
+POST {{baseUrl}}/debug/admin/create
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@example.com",
+  "password": "Admin123!",
+  "name": "Local Admin"
+}
+
+# After sending, copy accessToken/refreshToken from response into the variables above to use admin requests.
+
+### 2.2 Get all users (paginated)
+GET {{baseUrl}}/users?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+Authorization: Bearer {{accessToken}}
+
+### 2.3 Get user by ID
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{accessToken}}
+
+### 2.4 Get users stats by role
+GET {{baseUrl}}/users/stats/by-role
+Authorization: Bearer {{accessToken}}
+
+### 2.5 Create new user (Admin only)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "email": "newuser@example.com",
+  "password": "Password123!",
+  "name": "New User",
+  "role": "USER"
+}
+
+### 2.6 Update user
+PATCH {{baseUrl}}/users/{{userId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Updated Name",
+  "bio": "Updated bio"
+}
+
+### 2.7 Soft delete user
+DELETE {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{accessToken}}
+
+### 2.8 Hard delete user (Admin only)
+DELETE {{baseUrl}}/users/{{userId}}/hard
+Authorization: Bearer {{accessToken}}
+
+### 2.9 Verify user email (Admin only)
+POST {{baseUrl}}/users/{{userId}}/verify-email
+Authorization: Bearer {{accessToken}}
+
+###############################################
+# 3. FILE UPLOAD (Requires Auth)
+###############################################
+
+### 3.1 Presign PUT (for direct S3 upload)
+POST {{baseUrl}}/files/presign-put
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+X-Idempotency-Key: {{$guid}}
+
+{
+  "filename": "test-image.jpg",
+  "mime": "image/jpeg",
+  "sizeMax": 5242880
+}
+
+### 3.2 Presign POST (for form upload)
+POST {{baseUrl}}/files/presign-post
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+X-Idempotency-Key: {{$guid}}
+
+{
+  "filename": "test-document.pdf",
+  "mime": "application/pdf"
+}
+
+### 3.3 Complete file upload
+POST {{baseUrl}}/files/{{fileId}}/complete
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "size": 1024000,
+  "etag": "etag_from_s3_upload"
+}
+
+### 3.4 Create thumbnail
+POST {{baseUrl}}/files/{{fileId}}/thumbnail
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "width": 300,
+  "height": 300
+}
+
+### 3.5 Download file
+GET {{baseUrl}}/files/{{fileId}}/download
+Authorization: Bearer {{accessToken}}
+
+### 3.6 Delete file
+DELETE {{baseUrl}}/files/{{fileId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################
+# 4. ADMIN - QUEUE MANAGEMENT (Admin only)
+###############################################
+
+### 4.1 Get queue stats
+GET {{baseUrl}}/admin/queues/stats
+Authorization: Bearer {{accessToken}}
+
+### 4.2 Cleanup orphan files
+POST {{baseUrl}}/admin/queues/cleanup/orphan-files
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "olderThanDays": 7
+}
+
+### 4.3 Cleanup expired tokens
+POST {{baseUrl}}/admin/queues/cleanup/expired-tokens
+Authorization: Bearer {{accessToken}}
+
+### 4.4 Cleanup idempotency records
+POST {{baseUrl}}/admin/queues/cleanup/idempotency
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "olderThanDays": 30
+}
+
+### 4.5 Cleanup refresh tokens
+POST {{baseUrl}}/admin/queues/cleanup/refresh-tokens
+Authorization: Bearer {{accessToken}}
+
+###############################################
+# 5. HEALTH CHECK
+###############################################
+
+### 5.1 Health check
+GET {{baseUrl}}/health
+
+### 5.2 App info
+GET {{baseUrl}}
+
+###############################################
+# TESTING WORKFLOWS
+###############################################
+
+### WORKFLOW 1: Complete User Registration Flow
+# Step 1: Register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "workflow-test@example.com",
+  "password": "Test123456!",
+  "name": "Workflow Test"
+}
+
+### Step 2: Check email for verification link (simulated)
+### In development, check console logs for verification token
+
+### Step 3: Verify email
+GET {{baseUrl}}/auth/verify-email?token=TOKEN_FROM_EMAIL
+
+### Step 4: Login after verification
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "workflow-test@example.com",
+  "password": "Test123456!"
+}
+
+### WORKFLOW 2: File Upload Flow
+# Step 1: Get presign URL
+POST {{baseUrl}}/files/presign-put
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+X-Idempotency-Key: {{$guid}}
+
+{
+  "filename": "profile-pic.jpg",
+  "mime": "image/jpeg",
+  "sizeMax": 5242880
+}
+
+### Step 2: Upload file to S3 using presigned URL (use curl or Postman)
+# PUT {presignedUrl from step 1}
+# Body: binary file content
+
+### Step 3: Complete upload
+POST {{baseUrl}}/files/FILE_ID_FROM_STEP_1/complete
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "size": 245678,
+  "etag": "ETAG_FROM_S3_RESPONSE"
+}
+
+### Step 4: Create thumbnail
+POST {{baseUrl}}/files/FILE_ID_FROM_STEP_1/thumbnail
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "width": 300,
+  "height": 300
+}
+
+### WORKFLOW 3: Password Reset Flow
+# Step 1: Request password reset
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com"
+}
+
+### Step 2: Check email for reset token (simulated)
+### In development, check console logs for reset token
+
+### Step 3: Reset password with token
+POST {{baseUrl}}/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "TOKEN_FROM_EMAIL",
+  "password": "NewSecurePassword123!",
+  "confirmPassword": "NewSecurePassword123!"
+}
+
+### Step 4: Login with new password
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "NewSecurePassword123!"
+}
+
+###############################################
+# ERROR TESTING
+###############################################
+
+### Test 1: Invalid credentials
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "wrong@example.com",
+  "password": "wrongpassword"
+}
+
+### Test 2: Duplicate email registration
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "Test123456!",
+  "name": "Duplicate Test"
+}
+
+### Test 3: Invalid token
+GET {{baseUrl}}/auth/verify-email?token=invalid_token_123
+
+### Test 4: Unauthorized access
+GET {{baseUrl}}/users/me
+
+### Test 5: Invalid file upload (wrong MIME type)
+POST {{baseUrl}}/files/presign-put
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+X-Idempotency-Key: {{$guid}}
+
+{
+  "filename": "malicious.exe",
+  "mime": "application/x-msdownload",
+  "sizeMax": 1024
+}
+
+### Test 6: Rate limiting (send multiple requests quickly)
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+GET {{baseUrl}}/
+
+###############################################
+# NOTES
+###############################################
+
+# 1. Replace {{accessToken}}, {{refreshToken}}, {{userId}}, {{fileId}} 
+#    with actual values from responses
+#
+# 2. For VS Code REST Client extension:
+#    - Install: "REST Client" by Huachao Mao
+#    - Click "Send Request" above each ### separator
+#
+# 3. For Postman/Insomnia:
+#    - Import this file directly
+#    - Set environment variables for tokens
+#
+# 4. Idempotency testing:
+#    - Use same X-Idempotency-Key for duplicate requests
+#    - Second request should return cached response
+#
+# 5. Queue jobs:
+#    - Email jobs are processed asynchronously
+#    - Check Redis/BullMQ dashboard for job status
+#    - Check console logs for email content (in development)
+
+### DEBUG: Send test email (development only)
+# Use this to verify SendGrid integration. Only works when NODE_ENV != 'production'.
+POST {{baseUrl}}/debug/email/test
+Content-Type: application/json
+
+{
+  "to": "kronosss2002@gmail.com",
+  "subject": "Test email from local",
+  "html": "<p>This is a test email sent from the local debug endpoint.</p>"
+}

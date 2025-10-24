@@ -1,0 +1,45 @@
+// common/messages/prisma.message.ts
+
+/**
+ * Prisma error messages in Vietnamese
+ * Reference: https://www.prisma.io/docs/reference/api-reference/error-reference
+ */
+export const PRISMA_ERRORS = {
+  VALUE_TOO_LONG: `Giá trị vượt quá độ dài cho phép của trường`,
+  RECORD_NOT_FOUND: `Không tìm thấy bản ghi trong điều kiện where`,
+  UNIQUE_CONSTRAINT_FAILED: `Vi phạm ràng buộc duy nhất trên trường`,
+  FOREIGN_KEY_CONSTRAINT_FAILED: `Vi phạm ràng buộc khóa ngoại trên trường`,
+  CONSTRAINT_FAILED: `Ràng buộc thất bại trên cơ sở dữ liệu`,
+  INVALID_VALUE: `Giá trị lưu trong database không hợp lệ cho kiểu dữ liệu của trường`,
+  INVALID_PROVIDED_VALUE: `Giá trị được cung cấp cho trường không hợp lệ`,
+  DATA_VALIDATION_ERROR: `Lỗi xác thực dữ liệu`,
+  QUERY_PARSE_FAILED: `Không thể phân tích cú pháp query`,
+  QUERY_VALIDATION_FAILED: `Không thể xác thực query`,
+  RAW_QUERY_FAILED: `Raw query thất bại`,
+  NULL_CONSTRAINT_FAILED: `Vi phạm ràng buộc null trên trường`,
+  MISSING_REQUIRED_VALUE: `Thiếu giá trị bắt buộc`,
+  MISSING_REQUIRED_ARGUMENT: `Thiếu tham số bắt buộc cho trường`,
+  RELATION_VIOLATION: `Thay đổi sẽ vi phạm mối quan hệ bắt buộc giữa các model`,
+  RELATED_RECORD_NOT_FOUND: `Không thể tìm thấy bản ghi liên quan`,
+  QUERY_INTERPRETATION_ERROR: `Lỗi diễn giải query`,
+  RELATION_NOT_CONNECTED: `Các bản ghi cho mối quan hệ giữa các model không được kết nối`,
+  CONNECTED_RECORDS_NOT_FOUND: `Không tìm thấy các bản ghi kết nối bắt buộc`,
+  INPUT_ERROR: `Lỗi đầu vào`,
+  VALUE_OUT_OF_RANGE: `Giá trị ngoài phạm vi cho phép của kiểu dữ liệu`,
+  TABLE_NOT_FOUND: `Bảng không tồn tại trong database hiện tại`,
+  COLUMN_NOT_FOUND: `Cột không tồn tại trong database hiện tại`,
+  INCONSISTENT_COLUMN_DATA: `Dữ liệu cột không nhất quán`,
+  CONNECTION_POOL_TIMEOUT: `Hết thời gian chờ khi lấy kết nối mới từ connection pool`,
+  OPERATION_FAILED: `Thao tác thất bại vì phụ thuộc vào một hoặc nhiều bản ghi bắt buộc nhưng không tìm thấy`,
+  UNSUPPORTED_FEATURE: `Nhà cung cấp database hiện tại không hỗ trợ tính năng được sử dụng trong query`,
+  MULTIPLE_ERRORS: `Nhiều lỗi xảy ra trên database trong quá trình thực thi query`,
+  TRANSACTION_API_ERROR: `Lỗi Transaction API`,
+  QUERY_PARAMETER_LIMIT_EXCEEDED: `Vượt quá giới hạn tham số query`,
+  FULLTEXT_INDEX_NOT_FOUND: `Không thể tìm thấy fulltext index để sử dụng cho tìm kiếm`,
+  MONGODB_REPLICA_SET_REQUIRED: `Prisma cần thực hiện transactions, yêu cầu MongoDB server chạy như một replica set`,
+  NUMBER_OUT_OF_RANGE: `Số được sử dụng trong query không vừa với 64-bit signed integer`,
+  WRITE_CONFLICT: `Transaction thất bại do xung đột ghi hoặc deadlock`,
+  ASSERTION_VIOLATION: `Vi phạm assertion trên database`,
+  EXTERNAL_CONNECTOR_ERROR: `Lỗi trong external connector`,
+  TOO_MANY_CONNECTIONS: `Quá nhiều kết nối database được mở`,
+};
