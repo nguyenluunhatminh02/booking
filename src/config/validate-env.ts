@@ -58,6 +58,7 @@ const schema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .optional(),
+  ENABLE_BACKGROUND_JOBS: z.enum(['true', 'false']).optional(),
   REQUEST_ID_HEADER: z.string().optional(),
   RLS_WORKSPACE_VAR: z.string().optional(),
   RLS_ACTOR_VAR: z.string().optional(),
