@@ -1,56 +1,31 @@
-import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsISO8601,
-  Min,
-  IsDecimal,
-  IsArray,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { BookingStatus } from '@prisma/client';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class CreateBookingDto {
-  @IsString()
-  title: string;
+export const createBookingSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Số tiền không hợp lệ'),
+  currency: z.string().default('VND').optional(),
+  discount: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Giảm giá không hợp lệ')
+    .optional(),
+  tax: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Thuế không hợp lệ')
+    .optional(),
+  startTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'startTime phải là ISO8601',
+  }),
+  endTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'endTime phải là ISO8601',
+  }),
+  timezone: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
-  @IsOptional()
-  @IsString()
-  description?: string;
+export class CreateBookingDto extends createZodDto(createBookingSchema) {}
 
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsDecimal({ decimal_digits: '1,2' })
-  amount: string;
-
-  @IsOptional()
-  @IsString()
-  currency?: string = 'VND';
-
-  @IsOptional()
-  @IsDecimal({ decimal_digits: '1,2' })
-  discount?: string;
-
-  @IsOptional()
-  @IsDecimal({ decimal_digits: '1,2' })
-  tax?: string;
-
-  @IsISO8601()
-  startTime: string;
-
-  @IsISO8601()
-  endTime: string;
-
-  @IsOptional()
-  @IsString()
-  timezone?: string;
-
-  @IsOptional()
-  @IsArray()
-  tags?: string[];
-
-  @IsOptional()
-  metadata?: Record<string, any>;
-}
+export type CreateBookingInput = z.infer<typeof createBookingSchema>;

@@ -1,17 +1,20 @@
 // common/dto/pagination.dto.ts
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
+
+export const paginationSchema = z.object({
+  page: z.number().int().min(1).default(1).optional(),
+  limit: z.number().int().min(1).max(100).default(10).optional(),
+  sortBy: z.string().default('createdAt').optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
+});
 
 /**
  * Base pagination DTO for query parameters
  */
-export class PaginationDto {
+export class PaginationDto extends createZodDto(paginationSchema) {
   @ApiPropertyOptional({ minimum: 1, default: 1, description: 'Page number' })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @IsOptional()
   page?: number = 1;
 
   @ApiPropertyOptional({
@@ -20,18 +23,12 @@ export class PaginationDto {
     default: 10,
     description: 'Items per page',
   })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @IsOptional()
   limit?: number = 10;
 
   @ApiPropertyOptional({
     description: 'Sort field',
     example: 'createdAt',
   })
-  @IsOptional()
   sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({
@@ -39,7 +36,6 @@ export class PaginationDto {
     enum: ['asc', 'desc'],
     default: 'desc',
   })
-  @IsOptional()
   sortOrder?: 'asc' | 'desc' = 'desc';
 
   get skip(): number {

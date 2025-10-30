@@ -7,15 +7,13 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import {
+  Roles,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
 import { SystemRole } from '@prisma/client';
 import { PermissionsService } from './permissions.service';
 import { CreatePermissionDto } from './dto';
@@ -29,40 +27,56 @@ export class PermissionsController {
 
   @Post()
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Create new permission' })
-  @ApiCreatedResponse({ description: 'Permission created successfully' })
+  @ApiOperationDecorator({
+    summary: 'Create new permission',
+    description: 'Create a new system permission',
+    bodyType: CreatePermissionDto,
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Unauthorized],
+  })
   async create(@Body() dto: CreatePermissionDto) {
     return this.permissionsService.create(dto);
   }
 
   @Get()
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get all permissions' })
-  @ApiOkResponse({ description: 'List of all permissions' })
+  @ApiOperationDecorator({
+    summary: 'Get all permissions',
+    description: 'Retrieve list of all system permissions',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Unauthorized],
+  })
   async findAll() {
     return this.permissionsService.findAll();
   }
 
   @Get(':id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get permission by ID' })
-  @ApiOkResponse({ description: 'Permission details' })
+  @ApiOperationDecorator({
+    summary: 'Get permission by ID',
+    description: 'Retrieve details of a specific permission',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async findOne(@Param('id') id: string) {
     return this.permissionsService.findOne(id);
   }
 
   @Delete(':id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Delete permission' })
-  @ApiOkResponse({ description: 'Permission deleted successfully' })
+  @ApiOperationDecorator({
+    summary: 'Delete permission',
+    description: 'Delete a system permission',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async delete(@Param('id') id: string) {
     return this.permissionsService.delete(id);
   }
 
   @Post('seed')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Seed default permissions' })
-  @ApiOkResponse({ description: 'Default permissions seeded' })
+  @ApiOperationDecorator({
+    summary: 'Seed default permissions',
+    description: 'Seed the system with default permissions',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async seed() {
     return this.permissionsService.seedDefaults();
   }

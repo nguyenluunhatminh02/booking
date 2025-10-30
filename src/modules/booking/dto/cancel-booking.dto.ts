@@ -1,11 +1,14 @@
-import { IsString, IsOptional, IsDecimal } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class CancelBookingDto {
-  @IsOptional()
-  @IsString()
-  reason?: string;
+export const cancelBookingSchema = z.object({
+  reason: z.string().min(1),
+  refundAmount: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Số tiền hoàn trả không hợp lệ')
+    .optional(),
+});
 
-  @IsOptional()
-  @IsDecimal({ decimal_digits: '1,2' })
-  refundAmount?: string;
-}
+export class CancelBookingDto extends createZodDto(cancelBookingSchema) {}
+
+export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;

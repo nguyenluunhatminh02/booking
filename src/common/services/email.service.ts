@@ -51,7 +51,7 @@ export class EmailService {
             .replace(/<[^>]*>/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-        } catch (e) {
+        } catch {
           textFallback = '';
         }
       }

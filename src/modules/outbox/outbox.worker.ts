@@ -28,7 +28,7 @@ export class OutboxWorker extends WorkerHost {
     }
 
     try {
-      await this.handleEvent(evt.topic, evt.payload as any);
+      this.handleEvent(evt.topic, evt.payload as any);
 
       await this.prisma.outboxEvent.update({
         where: { id: outboxId },
@@ -52,15 +52,18 @@ export class OutboxWorker extends WorkerHost {
         },
       });
 
-      this.logger.error(`Failed to process outbox event ${outboxId}: ${message}`);
+      this.logger.error(
+        `Failed to process outbox event ${outboxId}: ${message}`,
+      );
       throw e;
     }
   }
 
-  private async handleEvent(topic: string, payload: any): Promise<void> {
+  private handleEvent(topic: string, payload: any): void {
     switch (topic) {
       case 'user.events':
-        await this.userEventsHandler.handle(payload);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        this.userEventsHandler.handle(payload);
         break;
       default:
         this.logger.warn(`No handler registered for outbox topic ${topic}`);

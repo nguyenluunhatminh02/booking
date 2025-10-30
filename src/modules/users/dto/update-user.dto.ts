@@ -1,16 +1,19 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateUserDto } from './create-user.dto';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { createUserSchema } from './create-user.dto';
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {
+const updateUserSchema = createUserSchema.partial().extend({
+  isActive: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
+});
+
+export class UpdateUserDto extends createZodDto(updateUserSchema) {
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
-  @IsBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
-  @IsBoolean()
   emailVerified?: boolean;
 }
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

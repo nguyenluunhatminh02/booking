@@ -78,7 +78,9 @@ export class OutboxDispatcher {
         },
       });
 
-      this.logger.error(`Failed to dispatch outbox event ${outboxId}: ${message}`);
+      this.logger.error(
+        `Failed to dispatch outbox event ${outboxId}: ${message}`,
+      );
       throw error;
     }
   }

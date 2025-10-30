@@ -1,18 +1,12 @@
-import { IsString, IsOptional } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class CheckAccessDto {
-  @IsString()
-  userId: string;
+export const checkAccessSchema = z.object({
+  userId: z.string().min(1),
+  resourceType: z.string().min(1),
+  resourceId: z.string().min(1),
+  action: z.string().min(1),
+  context: z.record(z.string(), z.any()).optional(),
+});
 
-  @IsString()
-  resourceType: string;
-
-  @IsString()
-  resourceId: string;
-
-  @IsString()
-  action: string;
-
-  @IsOptional()
-  context?: Record<string, any>;
-}
+export class CheckAccessDto extends createZodDto(checkAccessSchema) {}

@@ -12,24 +12,24 @@ export class UserEventsHandler {
   /**
    * Xử lý user events
    */
-  async handle(payload: EventPayload): Promise<void> {
+  handle(payload: EventPayload): void {
     this.logger.log(`Processing user event: ${payload.type}`);
 
     switch (payload.type) {
       case 'user.email_verification_requested':
-        await this.handleEmailVerificationRequested(payload);
+        this.handleEmailVerificationRequested(payload);
         break;
 
       case 'user.password_reset_requested':
-        await this.handlePasswordResetRequested(payload);
+        this.handlePasswordResetRequested(payload);
         break;
 
       case 'user.email_verified':
-        await this.handleEmailVerified(payload);
+        this.handleEmailVerified(payload);
         break;
 
       case 'user.password_reset_completed':
-        await this.handlePasswordResetCompleted(payload);
+        this.handlePasswordResetCompleted(payload);
         break;
 
       default:

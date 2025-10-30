@@ -1,0 +1,247 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { PropertyController } from '../src/modules/property/property.controller';
+import { PropertyService } from '../src/modules/property/property.service';
+import { AppModule } from '../src/app.module';
+
+describe('PropertyController (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let propertyService: PropertyService;
+
+  const mockUser = {
+    id: 'user-1',
+    email: 'property@test.com',
+    role: 'ADMIN',
+  };
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    propertyService = moduleFixture.get<PropertyService>(PropertyService);
+
+    await app.init();
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.property.deleteMany();
+    await prisma.user.deleteMany();
+
+    if (app) {
+      await app.close();
+    }
+  });
+
+  afterEach(async () => {
+    // Clean up after each test
+    await prisma.property.deleteMany();
+  });
+
+  describe('POST /properties', () => {
+    it('should create a new property', async () => {
+      const createDto = {
+        name: 'Luxury Apartment',
+        description: 'A beautiful 3-bedroom apartment',
+        address: '123 Main St',
+        city: 'New York',
+        country: 'USA',
+        pricePerNight: 150,
+        maxGuests: 6,
+        bedroomCount: 3,
+        bathroomCount: 2,
+        amenities: ['wifi', 'kitchen', 'ac'],
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .post('/properties')
+        .set('Authorization', `Bearer test-token`)
+        .send(createDto)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.name).toBe(createDto.name);
+      expect(response.body.pricePerNight).toBe(createDto.pricePerNight);
+    });
+
+    it('should fail with invalid data', async () => {
+      const invalidDto = {
+        name: '', // Missing name
+        pricePerNight: -100, // Invalid price
+      };
+
+      await request(app.getHttpServer() as unknown as App)
+        .post('/properties')
+        .set('Authorization', `Bearer test-token`)
+        .send(invalidDto)
+        .expect(400);
+    });
+  });
+
+  describe('GET /properties', () => {
+    it('should list all properties with pagination', async () => {
+      // Create test data
+      await prisma.property.createMany({
+        data: [
+          {
+            name: 'Property 1',
+            address: 'Address 1',
+            city: 'City 1',
+            country: 'Country 1',
+            pricePerNight: 100,
+            maxGuests: 4,
+            bedroomCount: 2,
+            bathroomCount: 1,
+          },
+          {
+            name: 'Property 2',
+            address: 'Address 2',
+            city: 'City 2',
+            country: 'Country 2',
+            pricePerNight: 200,
+            maxGuests: 6,
+            bedroomCount: 3,
+            bathroomCount: 2,
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/properties?page=1&limit=10')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should filter properties by price range', async () => {
+      await prisma.property.createMany({
+        data: [
+          {
+            name: 'Budget Property',
+            address: 'Address 1',
+            city: 'City 1',
+            country: 'Country 1',
+            pricePerNight: 50,
+            maxGuests: 2,
+            bedroomCount: 1,
+            bathroomCount: 1,
+          },
+          {
+            name: 'Luxury Property',
+            address: 'Address 2',
+            city: 'City 2',
+            country: 'Country 2',
+            pricePerNight: 500,
+            maxGuests: 8,
+            bedroomCount: 4,
+            bathroomCount: 3,
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/properties?minPrice=100&maxPrice=300')
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+  });
+
+  describe('GET /properties/:id', () => {
+    it('should retrieve a property by id', async () => {
+      const property = await prisma.property.create({
+        data: {
+          name: 'Test Property',
+          address: 'Test Address',
+          city: 'Test City',
+          country: 'Test Country',
+          pricePerNight: 150,
+          maxGuests: 4,
+          bedroomCount: 2,
+          bathroomCount: 1,
+        },
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get(`/properties/${property.id}`)
+        .expect(200);
+
+      expect(response.body.id).toBe(property.id);
+      expect(response.body.name).toBe('Test Property');
+    });
+
+    it('should return 404 for non-existent property', async () => {
+      await request(app.getHttpServer() as unknown as App)
+        .get('/properties/non-existent-id')
+        .expect(404);
+    });
+  });
+
+  describe('PATCH /properties/:id', () => {
+    it('should update a property', async () => {
+      const property = await prisma.property.create({
+        data: {
+          name: 'Original Name',
+          address: 'Test Address',
+          city: 'Test City',
+          country: 'Test Country',
+          pricePerNight: 150,
+          maxGuests: 4,
+          bedroomCount: 2,
+          bathroomCount: 1,
+        },
+      });
+
+      const updateDto = {
+        name: 'Updated Name',
+        pricePerNight: 200,
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .patch(`/properties/${property.id}`)
+        .set('Authorization', `Bearer test-token`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.name).toBe('Updated Name');
+      expect(response.body.pricePerNight).toBe(200);
+    });
+  });
+
+  describe('DELETE /properties/:id', () => {
+    it('should delete a property', async () => {
+      const property = await prisma.property.create({
+        data: {
+          name: 'To Delete',
+          address: 'Test Address',
+          city: 'Test City',
+          country: 'Test Country',
+          pricePerNight: 150,
+          maxGuests: 4,
+          bedroomCount: 2,
+          bathroomCount: 1,
+        },
+      });
+
+      await request(app.getHttpServer() as unknown as App)
+        .delete(`/properties/${property.id}`)
+        .set('Authorization', `Bearer test-token`)
+        .expect(200);
+
+      const deleted = await prisma.property.findUnique({
+        where: { id: property.id },
+      });
+
+      expect(deleted).toBeNull();
+    });
+  });
+});

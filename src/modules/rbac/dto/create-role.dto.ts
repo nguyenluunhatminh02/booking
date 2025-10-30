@@ -1,14 +1,10 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class CreateRoleDto {
-  @IsString()
-  name: string;
+export const createRoleSchema = z.object({
+  name: z.string().min(1),
+  desc: z.string().optional(),
+  isSystem: z.boolean().default(false).optional(),
+});
 
-  @IsOptional()
-  @IsString()
-  desc?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isSystem?: boolean = false;
-}
+export class CreateRoleDto extends createZodDto(createRoleSchema) {}

@@ -1,0 +1,148 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   🎯 API TEST - PICK YOUR STYLE 🎯                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─ 🔥 FASTEST & EASIEST ─────────────────────────────────────────────────────┐
+│                                                                              │
+│   $ npm run test:api                                                        │
+│                                                                              │
+│   ✅ No setup required                                                      │
+│   ✅ Auto token management                                                  │
+│   ✅ Auto idempotency handling                                              │
+│   ✅ Saga + compensation auto tested                                        │
+│   ✅ Results in terminal                                                    │
+│   ✅ All 10 tests in 30 seconds                                             │
+│                                                                              │
+│   Perfect For: Quick testing, CI/CD pipelines, automation                  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ 👁️  VISUAL & INTERACTIVE ────────────────────────────────────────────────┐
+│                                                                              │
+│   1. Install "REST Client" VS Code extension                               │
+│   2. Open file: TEST-REST-CLIENT.http                                      │
+│   3. Click "Send Request" on any request                                   │
+│                                                                              │
+│   ✅ See request & response side-by-side                                    │
+│   ✅ Variables auto-fill from responses                                     │
+│   ✅ Modify requests on-the-fly                                             │
+│   ✅ Request history saved                                                  │
+│   ✅ Code syntax highlighting                                              │
+│                                                                              │
+│   Perfect For: Exploration, debugging, learning                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ 🪟 POWERSHELL AUTOMATION ────────────────────────────────────────────────┐
+│                                                                              │
+│   $ npm run test:api:ps                                                    │
+│   or                                                                         │
+│   $ .\test-api.ps1                                                         │
+│                                                                              │
+│   ✅ Native Windows integration                                             │
+│   ✅ Colored output                                                         │
+│   ✅ Full test suite execution                                              │
+│   ✅ Error codes for automation                                             │
+│                                                                              │
+│   Perfect For: Windows users, scripting                                    │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ 📮 POSTMAN COLLECTION ────────────────────────────────────────────────────┐
+│                                                                              │
+│   1. Open Postman                                                           │
+│   2. Import: postman-collection.json                                        │
+│   3. Run collection                                                         │
+│                                                                              │
+│   ✅ Professional UI                                                        │
+│   ✅ Request grouping                                                       │
+│   ✅ Test assertions built-in                                               │
+│   ✅ Pretty reports                                                         │
+│   ✅ Team collaboration                                                     │
+│                                                                              │
+│   Perfect For: Teams, professional testing                                 │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+═════════════════════════════════════════════════════════════════════════════════
+
+⚡ QUICK SETUP (All 3 methods)
+
+  1. Start server:        npm run start:dev
+  2. In another terminal: npm run test:api (or other method)
+  3. Wait for results ✅
+
+═════════════════════════════════════════════════════════════════════════════════
+
+📊 TEST COVERAGE
+
+  1️⃣ Register User              ✓ User creation
+  2️⃣ Login & Token              ✓ Authentication
+  3️⃣ Create Booking             ✓ Idempotency
+  4️⃣ Get Booking Details        ✓ Data retrieval
+  5️⃣ List Bookings (Pagination) ✓ Filtering & pagination
+  6️⃣ Cancel Booking             ✓ Saga execution
+  7️⃣ Verify Cancellation        ✓ Saga compensation
+  8️⃣ Idempotency Test           ✓ Duplicate prevention
+  9️⃣ Outbox Events              ✓ Event system
+  🔟 Error Handling              ✓ Error responses
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🎯 RECOMMENDATION: Use CLI (npm run test:api) for fastest results ⚡
+
+═════════════════════════════════════════════════════════════════════════════════
+
+📁 FILES REFERENCE
+
+  run-tests.js                   Node.js CLI test runner
+  test-api.ps1                   PowerShell test runner  
+  TEST-REST-CLIENT.http          VS Code REST Client format
+  postman-collection.json        Postman import file
+  TEST-3-WAYS.md                 Detailed comparison
+  TEST-QUICK-START.md            Quick start guide
+  EASY_TEST_GUIDE.md             Complete guide
+  COMPLETE_HTTP_TEST_FLOW.http   Full HTTP examples (reference)
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🆘 TROUBLESHOOTING
+
+  ❌ Connection refused
+     → Make sure: npm run start:dev is running in another terminal
+
+  ❌ 401 Unauthorized  
+     → Make sure: Login test ran first (token generation)
+
+  ❌ Saga not executing
+     → Check: npm run start:dev logs for saga trace
+     → Check: Database with npx prisma studio
+
+  ❌ Idempotency not working
+     → Make sure: Idempotency-Key header is included
+
+═════════════════════════════════════════════════════════════════════════════════
+
+✨ Features Being Tested
+
+  ✓ Saga Pattern        - Orchestrated distributed transactions
+  ✓ Compensation       - Automatic rollback on failure  
+  ✓ Idempotency        - Duplicate request handling
+  ✓ Event System       - Outbox + Event handlers
+  ✓ RBAC               - Role-based access control
+  ✓ Pagination         - Cursor/offset pagination
+  ✓ Error Handling     - Proper HTTP status codes
+  ✓ Authentication     - JWT token validation
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🎉 READY TO TEST!
+
+  $ npm run start:dev          # Terminal 1
+  $ npm run test:api           # Terminal 2
+  
+  → All tests run automatically
+  → All 10 tests pass ✅
+  → Ready to deploy 🚀
+
+═════════════════════════════════════════════════════════════════════════════════

@@ -29,8 +29,11 @@ export class PermissionsService {
       );
     }
 
+    const name = `${dto.subject}.${dto.action}`;
+
     return this.prisma.permission.create({
       data: {
+        name,
         action: dto.action,
         subject: dto.subject,
         desc: dto.desc,
@@ -137,6 +140,7 @@ export class PermissionsService {
     ];
 
     for (const perm of defaults) {
+      const name = `${perm.subject}.${perm.action}`;
       await this.prisma.permission.upsert({
         where: {
           action_subject: {
@@ -145,7 +149,11 @@ export class PermissionsService {
           },
         },
         update: {},
-        create: perm,
+        create: {
+          name,
+          action: perm.action,
+          subject: perm.subject,
+        },
       });
     }
 

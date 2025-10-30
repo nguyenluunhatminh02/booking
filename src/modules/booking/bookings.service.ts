@@ -7,13 +7,17 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '@/prisma/prisma.service';
 import { OutboxEventService } from '@/modules/outbox/outbox-event.service';
+import { SagaOrchestrator, BookingCancellationSaga } from '@/core/sagas';
 import { CreateBookingDto, UpdateBookingDto, CancelBookingDto } from './dto';
+import { softDeleteAnd, softDelete } from '@/common/database';
 
 @Injectable()
 export class BookingsService {
   constructor(
     private prisma: PrismaService,
     private outboxEventService: OutboxEventService,
+    private sagaOrchestrator: SagaOrchestrator,
+    private bookingCancellationSaga: BookingCancellationSaga,
   ) {}
 
   /**
@@ -76,27 +80,66 @@ export class BookingsService {
   }
 
   /**
-   * Lấy tất cả bookings của user
+   * Lấy tất cả bookings của user (excludes soft-deleted)
+   * OPTIMIZED: Use select to avoid fetching unnecessary fields
    */
   async findByUser(userId: string, status?: string) {
-    const where: any = { userId };
+    const where: any = { userId, ...softDeleteAnd() };
     if (status) where.status = status;
 
     return this.prisma.booking.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      // Select only needed fields for list view
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        startTime: true,
+        endTime: true,
+        finalAmount: true,
+        currency: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     });
   }
 
   /**
-   * Lấy booking theo ID
+   * Lấy booking theo ID (excludes soft-deleted)
+   * OPTIMIZED: Include related user data to prevent N+1 queries
    */
-  async findOne(id: string) {
+  async findOne(id: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     });
 
+    // Check if booking exists
     if (!booking) {
+      throw new NotFoundException(`Booking with ID "${id}" not found`);
+    }
+
+    // Check if soft-deleted (cast to any to bypass type checking since field may not be inferred)
+    const deletedAt = (booking as any).deletedAt;
+    if (deletedAt !== null && deletedAt !== undefined) {
       throw new NotFoundException(`Booking with ID "${id}" not found`);
     }
 
@@ -106,11 +149,7 @@ export class BookingsService {
   /**
    * Check quyền truy cập booking
    */
-  async checkAccess(
-    bookingId: string,
-    userId: string,
-    action: string = 'read',
-  ) {
+  async checkAccess(bookingId: string, userId: string) {
     const booking = await this.findOne(bookingId);
 
     // Owner luôn có quyền
@@ -130,7 +169,7 @@ export class BookingsService {
     const booking = await this.findOne(id);
 
     // Check quyền
-    await this.ensureAccess(booking, userId, 'update');
+    this.ensureAccess(booking, userId, 'update');
 
     // Không cho phép cập nhật khi booking đã confirmed
     if (booking.status !== 'DRAFT' && booking.status !== 'PENDING') {
@@ -149,6 +188,7 @@ export class BookingsService {
 
     if (dto.status) {
       // Validate status transition
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       this.validateStatusTransition(booking.status, dto.status);
       updateData.status = dto.status;
 
@@ -190,7 +230,7 @@ export class BookingsService {
   async confirm(id: string, userId: string) {
     const booking = await this.findOne(id);
 
-    await this.ensureAccess(booking, userId, 'confirm');
+    this.ensureAccess(booking, userId, 'confirm');
 
     if (booking.status !== 'DRAFT' && booking.status !== 'PENDING') {
       throw new BadRequestException(
@@ -223,11 +263,12 @@ export class BookingsService {
 
   /**
    * Hủy booking và hoàn tiền
+   * Uses BookingCancellationSaga for distributed transaction with compensation
    */
   async cancel(id: string, userId: string, dto: CancelBookingDto) {
     const booking = await this.findOne(id);
 
-    await this.ensureAccess(booking, userId, 'cancel');
+    this.ensureAccess(booking, userId, 'cancel');
 
     // Chỉ có thể hủy nếu chưa completed hoặc cancelled
     if (
@@ -244,35 +285,32 @@ export class BookingsService {
       ? new Decimal(dto.refundAmount)
       : booking.finalAmount;
 
-    const updated = await this.prisma.booking.update({
-      where: { id },
-      data: {
-        status: 'REFUND_PENDING',
-        cancelledAt: new Date(),
-        refundAmount,
-        refundReason: dto.reason,
-      },
-    });
-
-    // Dispatch event
-    await this.outboxEventService.createEvent(
-      'booking.events',
-      `cancel-${id}`,
+    // Execute saga for distributed cancellation
+    const sagaResult = await this.sagaOrchestrator.execute(
+      this.bookingCancellationSaga,
       {
-        type: 'booking.cancelled',
         bookingId: id,
-        userId: booking.userId,
-        refundAmount: refundAmount.toString(),
+        userId,
+        reason: dto.reason,
+        refundAmount,
       },
     );
 
-    return updated;
+    if (!sagaResult.success) {
+      throw new Error(
+        `Booking cancellation failed: ${sagaResult.error?.message}`,
+      );
+    }
+
+    // Saga handles status update and event publishing
+    const updatedBooking = await this.findOne(id);
+    return updatedBooking;
   }
 
   /**
    * Xác nhận hoàn tiền
    */
-  async confirmRefund(id: string, userId: string) {
+  async confirmRefund(id: string) {
     const booking = await this.findOne(id);
 
     // Chỉ admin có thể xác nhận refund
@@ -307,10 +345,13 @@ export class BookingsService {
   }
 
   /**
-   * Lấy stats cho user (hoặc admin nếu no userId)
+   * Lấy stats cho user (hoặc admin nếu no userId) - excludes soft-deleted
    */
   async getStats(userId?: string) {
-    const where = userId ? { userId } : {};
+    const where: any = {
+      ...(userId && { userId }),
+      deletedAt: null,
+    };
 
     const [total, draft, pending, confirmed, completed, cancelled, refunded] =
       await Promise.all([
@@ -347,12 +388,14 @@ export class BookingsService {
   }
 
   /**
-   * Xóa booking (chỉ draft)
+   * Xóa booking (chỉ draft) - Soft delete
+   * Sets deletedAt timestamp instead of permanent deletion
+   * Data is recoverable if needed
    */
   async delete(id: string, userId: string) {
     const booking = await this.findOne(id);
 
-    await this.ensureAccess(booking, userId, 'delete');
+    this.ensureAccess(booking, userId, 'delete');
 
     if (booking.status !== 'DRAFT') {
       throw new BadRequestException(
@@ -360,7 +403,22 @@ export class BookingsService {
       );
     }
 
-    return this.prisma.booking.delete({ where: { id } });
+    // Use soft delete instead of hard delete
+    const deleted = await softDelete('booking', id, this.prisma);
+
+    // Publish event for audit logging
+    await this.outboxEventService.createEvent(
+      'booking.events',
+      `delete-${id}`,
+      {
+        type: 'booking.deleted',
+        bookingId: id,
+        userId: userId,
+        reason: 'User deleted draft booking',
+      },
+    );
+
+    return deleted;
   }
 
   // ============= Private Methods =============
@@ -368,7 +426,7 @@ export class BookingsService {
   /**
    * Kiểm tra quyền truy cập
    */
-  private async ensureAccess(booking: any, userId: string, action: string) {
+  private ensureAccess(booking: any, userId: string, action: string) {
     // Owner có quyền
     if (booking.userId === userId) {
       return;

@@ -1,7 +1,11 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import {
+  Roles,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
 import { QueueService } from '@/core/queue/queue.service';
 
 @ApiTags('Admin - Queue Management')
@@ -13,18 +17,20 @@ export class QueueAdminController {
   constructor(private readonly queueService: QueueService) {}
 
   @Get('stats')
-  @ApiOperation({
+  @ApiOperationDecorator({
     summary: 'Get queue statistics',
     description: 'Returns job counts for all queues (admin only)',
+    exclude: [ApiResponseType.BadRequest],
   })
   async getStats() {
     return this.queueService.getQueueStats();
   }
 
   @Post('cleanup/orphan-files')
-  @ApiOperation({
+  @ApiOperationDecorator({
     summary: 'Trigger orphan files cleanup',
     description: 'Manually trigger cleanup of orphan files (admin only)',
+    exclude: [ApiResponseType.BadRequest],
   })
   async cleanupOrphanFiles(@Body() body: { olderThanHours?: number }) {
     const olderThan = body.olderThanHours
@@ -39,9 +45,10 @@ export class QueueAdminController {
   }
 
   @Post('cleanup/expired-tokens')
-  @ApiOperation({
+  @ApiOperationDecorator({
     summary: 'Trigger expired tokens cleanup',
     description: 'Manually trigger cleanup of expired tokens (admin only)',
+    exclude: [ApiResponseType.BadRequest],
   })
   async cleanupExpiredTokens() {
     const job = await this.queueService.cleanupExpiredTokens();
@@ -52,10 +59,11 @@ export class QueueAdminController {
   }
 
   @Post('cleanup/idempotency')
-  @ApiOperation({
+  @ApiOperationDecorator({
     summary: 'Trigger idempotency cleanup',
     description:
       'Manually trigger cleanup of old idempotency records (admin only)',
+    exclude: [ApiResponseType.BadRequest],
   })
   async cleanupIdempotency(@Body() body: { olderThanDays?: number }) {
     const olderThan = body.olderThanDays
@@ -70,9 +78,10 @@ export class QueueAdminController {
   }
 
   @Post('cleanup/refresh-tokens')
-  @ApiOperation({
+  @ApiOperationDecorator({
     summary: 'Trigger refresh tokens cleanup',
     description: 'Manually trigger cleanup of old refresh tokens (admin only)',
+    exclude: [ApiResponseType.BadRequest],
   })
   async cleanupRefreshTokens() {
     const job = await this.queueService.cleanupOldRefreshTokens();

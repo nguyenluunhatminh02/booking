@@ -1,9 +1,11 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateBookingDto } from './create-booking.dto';
-import { IsOptional, IsString } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
+import { createBookingSchema } from './create-booking.dto';
 
-export class UpdateBookingDto extends PartialType(CreateBookingDto) {
-  @IsOptional()
-  @IsString()
-  status?: string;
-}
+export const updateBookingSchema = createBookingSchema.partial().extend({
+  status: z.string().optional(),
+});
+
+export class UpdateBookingDto extends createZodDto(updateBookingSchema) {}
+
+export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;

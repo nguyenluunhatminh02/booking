@@ -1,0 +1,171 @@
+# 🔷 REST Client Test Suite - Copy this to REST Client extension settings
+
+## Quick Start:
+1. Install "REST Client" extension in VS Code (by Huachao Mao)
+2. Open `test-rest-client.http` file
+3. Click "Send Request" above each request
+4. Variables auto-populate from responses
+
+---
+
+### 🌍 Environment Variables
+@baseUrl = http://localhost:3000
+@email = {{$timestamp}}_test@example.com
+@password = Test@123456
+
+### 📌 Saved from Responses
+@accessToken = 
+@userId = 
+@bookingId = 
+@idempotencyKey = 
+
+---
+
+### ✅ Test 1: Register User
+
+POST {{baseUrl}}/auth/register HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "fullName": "Test User {{$timestamp}}"
+}
+
+> {% 
+  if (response.status === 201) {
+    client.global.set("userId", response.body.data.userId);
+    client.global.set("email", response.body.data.email);
+  }
+%}
+
+---
+
+### ✅ Test 2: Login & Get Token
+
+POST {{baseUrl}}/auth/login HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+  if (response.status === 200) {
+    client.global.set("accessToken", response.body.data.accessToken);
+  }
+%}
+
+---
+
+### ✅ Test 3: Create Booking (Idempotency)
+
+@idempotencyKey = booking_{{$timestamp}}
+
+POST {{baseUrl}}/bookings HTTP/1.1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: {{idempotencyKey}}
+
+{
+  "propertyId": "prop_test_123",
+  "checkIn": "2025-11-01",
+  "checkOut": "2025-11-05",
+  "numberOfGuests": 2,
+  "totalPrice": "1000"
+}
+
+> {%
+  if (response.status === 201) {
+    client.global.set("bookingId", response.body.data.bookingId);
+  }
+%}
+
+---
+
+### ✅ Test 4: Get Booking
+
+GET {{baseUrl}}/bookings/{{bookingId}} HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 5: List Bookings (Paginated)
+
+GET {{baseUrl}}/bookings?page=1&limit=10 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 6: Cancel Booking (Saga with Compensation)
+
+@cancelKey = cancel_{{$timestamp}}
+
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel HTTP/1.1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: {{cancelKey}}
+
+{
+  "reason": "User requested cancellation"
+}
+
+---
+
+### ✅ Test 7: Verify Cancellation (Check Saga Results)
+
+GET {{baseUrl}}/bookings/{{bookingId}} HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 8: Get Outbox Events (Event System)
+
+GET {{baseUrl}}/outbox?status=SENT&limit=20 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 9: Outbox Stats
+
+GET {{baseUrl}}/outbox/stats HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 10: Error - Unauthorized (No Token)
+
+GET {{baseUrl}}/bookings HTTP/1.1
+
+---
+
+### ✅ Test 11: Error - Invalid Booking ID
+
+GET {{baseUrl}}/bookings/invalid-id HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+---
+
+### ✅ Test 12: Duplicate Request (Idempotency Test)
+
+POST {{baseUrl}}/bookings HTTP/1.1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: {{idempotencyKey}}
+
+{
+  "propertyId": "prop_test_123",
+  "checkIn": "2025-11-01",
+  "checkOut": "2025-11-05",
+  "numberOfGuests": 2,
+  "totalPrice": "1000"
+}
+
+> {%
+  if (response.status === 200) {
+    client.log("✓ Idempotency works! Got same booking ID");
+  }
+%}
+
+---

@@ -8,15 +8,13 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import {
+  Roles,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
 import { SystemRole } from '@prisma/client';
 import { AclService } from './acl.service';
 import { GrantAccessDto, CheckAccessDto } from './dto';
@@ -30,15 +28,23 @@ export class AclController {
 
   @Post('grant')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Grant access to resource' })
-  @ApiCreatedResponse({ description: 'Access granted' })
+  @ApiOperationDecorator({
+    summary: 'Grant access to resource',
+    description: 'Grant user access to a specific resource',
+    bodyType: GrantAccessDto,
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Unauthorized],
+  })
   async grantAccess(@Body() dto: GrantAccessDto) {
     return this.aclService.grantAccess(dto);
   }
 
   @Post('check')
-  @ApiOperation({ summary: 'Check user access to resource' })
-  @ApiOkResponse({ description: 'Access check result' })
+  @ApiOperationDecorator({
+    summary: 'Check user access to resource',
+    description: 'Verify if user has access to a specific resource',
+    bodyType: CheckAccessDto,
+    exclude: [ApiResponseType.BadRequest],
+  })
   async checkAccess(@Body() dto: CheckAccessDto) {
     const hasAccess = await this.aclService.checkAccess(dto);
     return { hasAccess };
@@ -46,8 +52,11 @@ export class AclController {
 
   @Get('resource/:resourceType/:resourceId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get all ACL rules for a resource' })
-  @ApiOkResponse({ description: 'List of ACL rules' })
+  @ApiOperationDecorator({
+    summary: 'Get all ACL rules for a resource',
+    description: 'Retrieve all access control rules for a specific resource',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async getResourceAcls(
     @Param('resourceType') resourceType: string,
     @Param('resourceId') resourceId: string,
@@ -57,19 +66,24 @@ export class AclController {
 
   @Get('user/:userId/resources')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get user resources with access' })
-  @ApiOkResponse({ description: 'List of resources' })
+  @ApiOperationDecorator({
+    summary: 'Get user resources with access',
+    description: 'List all resources that user has access to',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async findUserResources(
     @Param('userId') userId: string,
     @Query('resourceType') resourceType: string,
-    @Query('action') action: string = 'read',
   ) {
-    return this.aclService.findUserResources(userId, resourceType, action);
+    return this.aclService.findUserResources(userId, resourceType);
   }
 
   @Get('user/:userId/resource/:resourceType/:resourceId')
-  @ApiOperation({ summary: 'Get user access to specific resource' })
-  @ApiOkResponse({ description: 'List of user permissions on resource' })
+  @ApiOperationDecorator({
+    summary: 'Get user access to specific resource',
+    description: 'Retrieve user permissions on a specific resource',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async getUserResourceAccess(
     @Param('userId') userId: string,
     @Param('resourceType') resourceType: string,
@@ -84,26 +98,26 @@ export class AclController {
 
   @Delete('revoke/:userId/:resourceType/:resourceId/:action')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Revoke access' })
-  @ApiOkResponse({ description: 'Access revoked' })
+  @ApiOperationDecorator({
+    summary: 'Revoke access',
+    description: 'Revoke user access to a resource',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async revokeAccess(
     @Param('userId') userId: string,
     @Param('resourceType') resourceType: string,
     @Param('resourceId') resourceId: string,
-    @Param('action') action: string,
   ) {
-    return this.aclService.revokeAccess(
-      userId,
-      resourceType,
-      resourceId,
-      action,
-    );
+    return this.aclService.revokeAccess(userId, resourceType, resourceId);
   }
 
   @Delete('revoke-all/:userId/:resourceType/:resourceId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Revoke all access to resource' })
-  @ApiOkResponse({ description: 'All access revoked' })
+  @ApiOperationDecorator({
+    summary: 'Revoke all access to resource',
+    description: 'Remove all user access rights to a resource',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async revokeAllUserResourceAccess(
     @Param('userId') userId: string,
     @Param('resourceType') resourceType: string,
@@ -118,8 +132,11 @@ export class AclController {
 
   @Delete('resource/:resourceType/:resourceId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Delete all ACL rules for resource' })
-  @ApiOkResponse({ description: 'ACL rules deleted' })
+  @ApiOperationDecorator({
+    summary: 'Delete all ACL rules for resource',
+    description: 'Remove all access control rules for a resource',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async deleteResourceAcls(
     @Param('resourceType') resourceType: string,
     @Param('resourceId') resourceId: string,

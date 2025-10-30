@@ -7,14 +7,13 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import {
+  Roles,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
 import { SystemRole } from '@prisma/client';
 import { OutboxEventService } from './outbox-event.service';
 import { OutboxDispatcher } from './outbox.dispatcher';
@@ -33,8 +32,12 @@ export class OutboxController {
 
   @Get('events')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get all outbox events' })
-  @ApiOkResponse({ description: 'List of outbox events' })
+  @ApiOperationDecorator({
+    summary: 'Get all outbox events',
+    description:
+      'List all outbox events with optional filtering by status and topic',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async getEvents(
     @Query('status') status?: string,
     @Query('topic') topic?: string,
@@ -53,24 +56,33 @@ export class OutboxController {
 
   @Get('events/pending')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get pending events' })
-  @ApiOkResponse({ description: 'List of pending events' })
+  @ApiOperationDecorator({
+    summary: 'Get pending events',
+    description: 'List all pending outbox events',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async getPendingEvents(@Query('limit') limit: number = 50) {
     return this.outboxEventService.getPendingEvents(limit);
   }
 
   @Get('events/failed')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get failed events' })
-  @ApiOkResponse({ description: 'List of failed events' })
+  @ApiOperationDecorator({
+    summary: 'Get failed events',
+    description: 'List all failed outbox events',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async getFailedEvents(@Query('limit') limit: number = 50) {
     return this.outboxEventService.getFailedEvents(limit);
   }
 
   @Get('events/:id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get event details' })
-  @ApiOkResponse({ description: 'Event details' })
+  @ApiOperationDecorator({
+    summary: 'Get event details',
+    description: 'Retrieve details of a specific outbox event',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async getEvent(@Param('id') id: string) {
     return this.prisma.outboxEvent.findUnique({
       where: { id },
@@ -79,16 +91,22 @@ export class OutboxController {
 
   @Post('events/:id/retry')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Retry failed event' })
-  @ApiOkResponse({ description: 'Event retry queued' })
+  @ApiOperationDecorator({
+    summary: 'Retry failed event',
+    description: 'Attempt to retry a failed outbox event',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async retryEvent(@Param('id') id: string) {
     return this.outboxEventService.retryEvent(id);
   }
 
   @Delete('events/:id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Delete outbox event' })
-  @ApiOkResponse({ description: 'Event deleted' })
+  @ApiOperationDecorator({
+    summary: 'Delete outbox event',
+    description: 'Delete a specific outbox event',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async deleteEvent(@Param('id') id: string) {
     return this.prisma.outboxEvent.delete({
       where: { id },
@@ -97,8 +115,11 @@ export class OutboxController {
 
   @Post('cleanup')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Cleanup old sent events' })
-  @ApiOkResponse({ description: 'Cleanup completed' })
+  @ApiOperationDecorator({
+    summary: 'Cleanup old sent events',
+    description: 'Delete old sent events from outbox based on age',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async cleanup(@Query('olderThanHours') olderThanHours: number = 24) {
     const result =
       await this.outboxEventService.cleanupSentEvents(olderThanHours);
@@ -110,8 +131,11 @@ export class OutboxController {
 
   @Get('stats')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get outbox statistics' })
-  @ApiOkResponse({ description: 'Outbox statistics' })
+  @ApiOperationDecorator({
+    summary: 'Get outbox statistics',
+    description: 'Retrieve statistics about outbox events by status',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async getStats() {
     const [total, pending, failed, sent, enqueued] = await Promise.all([
       this.prisma.outboxEvent.count(),
@@ -132,24 +156,33 @@ export class OutboxController {
 
   @Post('dispatch-all')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Dispatch all pending events' })
-  @ApiOkResponse({ description: 'Dispatch completed' })
+  @ApiOperationDecorator({
+    summary: 'Dispatch all pending events',
+    description: 'Process and dispatch all pending outbox events',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async dispatchAll(@Query('batchSize') batchSize: number = 100) {
     return this.outboxDispatcher.dispatchAll(batchSize);
   }
 
   @Post('retry-dead-letters')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Retry failed events' })
-  @ApiOkResponse({ description: 'Retry completed' })
+  @ApiOperationDecorator({
+    summary: 'Retry failed events',
+    description: 'Retry dead letter events that failed processing',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async retryDeadLetters(@Query('maxRetries') maxRetries: number = 3) {
     return this.outboxDispatcher.retryDeadLetters(maxRetries);
   }
 
   @Get('health')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Outbox system health check' })
-  @ApiOkResponse({ description: 'Health check result' })
+  @ApiOperationDecorator({
+    summary: 'Outbox system health check',
+    description: 'Check the health status of the outbox system',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async healthCheck() {
     return this.outboxDispatcher.healthCheck();
   }

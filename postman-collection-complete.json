@@ -1,0 +1,1551 @@
+{
+  "info": {
+    "name": "Booking System API - Complete Collection",
+    "description": "Complete REST API collection for the Booking System with authentication, CRUD operations, and advanced features.\n\nAuthor: Booking System Team\nVersion: 1.0.0\nBase URL: http://localhost:3000/api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "propertyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', response.refreshToken);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "    pm.test('Registration successful', () => {",
+                  "        pm.expect(response.user.email).to.exist;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"John Doe\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new user account. Password must contain uppercase, lowercase, number, and special character."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', response.refreshToken);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "    pm.test('Login successful', () => {",
+                  "        pm.expect(response.accessToken).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password. Returns access token and refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.accessToken);",
+                  "    pm.test('Token refreshed', () => {",
+                  "        pm.expect(response.accessToken).to.exist;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Refresh access token using refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user and invalidate tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forgot-password"]
+            },
+            "description": "Request password reset email."
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset-token-from-email\",\n  \"newPassword\": \"NewSecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"]
+            },
+            "description": "Reset password using token from email."
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"SecurePass123!\",\n  \"newPassword\": \"NewSecurePass456!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"]
+            },
+            "description": "Change password for authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"verification-token-from-email\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-email",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify-email"]
+            },
+            "description": "Verify email address using token."
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Verification Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/resend-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "resend-verification"]
+            },
+            "description": "Resend email verification link."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Users",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Get current authenticated user profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe Updated\",\n  \"phone\": \"+1987654321\",\n  \"bio\": \"Travel enthusiast\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Update current user profile information."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/avatar.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me", "avatar"]
+            },
+            "description": "Upload user avatar image."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Get user profile by ID (public info only)."
+          },
+          "response": []
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=20&role=USER",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "role",
+                  "value": "USER"
+                }
+              ]
+            },
+            "description": "List users with pagination and filters. Requires ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Update user information. Requires ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Soft delete user account. Requires ADMIN role."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Properties",
+      "item": [
+        {
+          "name": "Create Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('propertyId', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Luxury Villa in Bali\",\n  \"description\": \"Beautiful 3-bedroom villa with ocean view\",\n  \"propertyType\": \"VILLA\",\n  \"address\": {\n    \"street\": \"Jl. Raya Seminyak\",\n    \"city\": \"Bali\",\n    \"state\": \"Bali\",\n    \"country\": \"Indonesia\",\n    \"zipCode\": \"80361\",\n    \"latitude\": -8.6905,\n    \"longitude\": 115.1728\n  },\n  \"price\": {\n    \"basePrice\": 150.00,\n    \"currency\": \"USD\",\n    \"cleaningFee\": 25.00,\n    \"serviceFee\": 15.00\n  },\n  \"capacity\": {\n    \"guests\": 6,\n    \"bedrooms\": 3,\n    \"beds\": 4,\n    \"bathrooms\": 2\n  },\n  \"amenities\": [\"WIFI\", \"POOL\", \"KITCHEN\", \"PARKING\", \"AC\"],\n  \"rules\": {\n    \"checkInTime\": \"15:00\",\n    \"checkOutTime\": \"11:00\",\n    \"minimumStay\": 2,\n    \"maximumStay\": 30,\n    \"allowPets\": false,\n    \"allowSmoking\": false,\n    \"allowParties\": false\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"]
+            },
+            "description": "Create a new property listing."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties?page=1&limit=20&propertyType=VILLA&minPrice=50&maxPrice=500&guests=4&city=Bali",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "propertyType",
+                  "value": "VILLA"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "50"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "500"
+                },
+                {
+                  "key": "guests",
+                  "value": "4"
+                },
+                {
+                  "key": "city",
+                  "value": "Bali"
+                }
+              ]
+            },
+            "description": "Get all properties with advanced filtering and pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Property By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}"]
+            },
+            "description": "Get detailed property information by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Property",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Luxury Villa in Bali - Updated\",\n  \"price\": {\n    \"basePrice\": 175.00\n  },\n  \"amenities\": [\"WIFI\", \"POOL\", \"KITCHEN\", \"PARKING\", \"AC\", \"GYM\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}"]
+            },
+            "description": "Update property information. Only owner can update."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Property",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}"]
+            },
+            "description": "Soft delete property. Only owner can delete."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Property Images",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}/images",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}", "images"]
+            },
+            "description": "Upload multiple images for property."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Property Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}/availability?startDate=2024-06-01&endDate=2024-06-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}", "availability"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-06-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-06-30"
+                }
+              ]
+            },
+            "description": "Check property availability for date range."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Property Availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2024-06-15\",\n  \"endDate\": \"2024-06-20\",\n  \"isAvailable\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}", "availability"]
+            },
+            "description": "Update property availability calendar."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Property Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}/reviews?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}", "reviews"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all reviews for a property."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/me/properties?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "me", "properties"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get current user's properties."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Bookings",
+      "item": [
+        {
+          "name": "Create Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('bookingId', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"checkInDate\": \"2024-07-01\",\n  \"checkOutDate\": \"2024-07-07\",\n  \"guests\": 4,\n  \"guestDetails\": {\n    \"adults\": 2,\n    \"children\": 2,\n    \"infants\": 0\n  },\n  \"specialRequests\": \"Early check-in if possible\",\n  \"paymentMethodId\": \"pm_card_visa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Create a new booking reservation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?page=1&limit=20&status=CONFIRMED",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "CONFIRMED"
+                }
+              ]
+            },
+            "description": "Get all bookings for current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}"]
+            },
+            "description": "Get booking details by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkOutDate\": \"2024-07-08\",\n  \"guests\": 5,\n  \"specialRequests\": \"Updated: Need extra bed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}"]
+            },
+            "description": "Update booking details. Only allowed before check-in."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Change of plans\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "cancel"]
+            },
+            "description": "Cancel a booking. Refund amount depends on cancellation policy."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "confirm"]
+            },
+            "description": "Confirm a pending booking. Host only."
+          },
+          "response": []
+        },
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verificationCode\": \"CHECK123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "checkin"]
+            },
+            "description": "Check in to property on arrival."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Out",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "checkout"]
+            },
+            "description": "Check out from property."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking Invoice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/invoice",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "invoice"]
+            },
+            "description": "Get booking invoice details."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Reviews",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"propertyId\": \"{{propertyId}}\",\n  \"rating\": 5,\n  \"comment\": \"Amazing place! Highly recommended.\",\n  \"ratings\": {\n    \"cleanliness\": 5,\n    \"accuracy\": 5,\n    \"checkIn\": 5,\n    \"communication\": 5,\n    \"location\": 4,\n    \"value\": 5\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews"]
+            },
+            "description": "Create a review for a completed booking."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/:reviewId",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews", ":reviewId"],
+              "variable": [
+                {
+                  "key": "reviewId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get review details by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Great place, minor issues with wifi.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews/:reviewId",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews", ":reviewId"],
+              "variable": [
+                {
+                  "key": "reviewId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Update review. Only within 14 days of creation."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/:reviewId",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews", ":reviewId"],
+              "variable": [
+                {
+                  "key": "reviewId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete review. Only author or admin can delete."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Files",
+      "item": [
+        {
+          "name": "Get Presigned URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"property-image.jpg\",\n  \"contentType\": \"image/jpeg\",\n  \"fileSize\": 2048576,\n  \"category\": \"PROPERTY_IMAGE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/presigned-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "presigned-url"]
+            },
+            "description": "Get presigned URL for direct S3 upload."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"file-uuid\",\n  \"etag\": \"s3-etag-from-upload\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/complete-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "complete-upload"]
+            },
+            "description": "Mark file upload as complete after S3 upload."
+          },
+          "response": []
+        },
+        {
+          "name": "Get File By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/:fileId",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", ":fileId"],
+              "variable": [
+                {
+                  "key": "fileId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get file metadata and download URL."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/:fileId",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", ":fileId"],
+              "variable": [
+                {
+                  "key": "fileId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete file from storage."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files?page=1&limit=20&category=PROPERTY_IMAGE",
+              "host": ["{{baseUrl}}"],
+              "path": ["files"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "category",
+                  "value": "PROPERTY_IMAGE"
+                }
+              ]
+            },
+            "description": "List current user's uploaded files."
+          },
+          "response": []
+        },
+        {
+          "name": "Get File Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/statistics",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "statistics"]
+            },
+            "description": "Get file storage statistics for current user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Search",
+      "item": [
+        {
+          "name": "Search Properties",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"villa beach\",\n  \"filters\": {\n    \"propertyType\": [\"VILLA\", \"HOUSE\"],\n    \"minPrice\": 50,\n    \"maxPrice\": 500,\n    \"guests\": 4,\n    \"amenities\": [\"POOL\", \"WIFI\"],\n    \"city\": \"Bali\"\n  },\n  \"sort\": {\n    \"field\": \"price\",\n    \"order\": \"asc\"\n  },\n  \"page\": 1,\n  \"limit\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/search/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["search", "properties"]
+            },
+            "description": "Full-text search properties using MeiliSearch."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?page=1&limit=20&isRead=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "isRead",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Get current user's notifications."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark As Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/:notificationId/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", ":notificationId", "read"],
+              "variable": [
+                {
+                  "key": "notificationId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Mark notification as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All As Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "read-all"]
+            },
+            "description": "Mark all notifications as read."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. RBAC (Role-Based Access Control)",
+      "item": [
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PROPERTY_MANAGER\",\n  \"description\": \"Manages properties and bookings\",\n  \"permissions\": [\n    \"properties:read\",\n    \"properties:write\",\n    \"bookings:read\",\n    \"bookings:manage\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rbac/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "roles"]
+            },
+            "description": "Create new role. Requires ADMIN permission."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rbac/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "roles"]
+            },
+            "description": "List all roles in the system."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description\",\n  \"permissions\": [\n    \"properties:read\",\n    \"properties:write\",\n    \"bookings:read\",\n    \"bookings:manage\",\n    \"reviews:moderate\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rbac/roles/:roleId",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "roles", ":roleId"],
+              "variable": [
+                {
+                  "key": "roleId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Update role permissions."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rbac/roles/:roleId",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "roles", ":roleId"],
+              "variable": [
+                {
+                  "key": "roleId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete role from system."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Role To User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleId\": \"role-uuid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rbac/users/assign-role",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "users", "assign-role"]
+            },
+            "description": "Assign role to user."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Role From User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleId\": \"role-uuid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rbac/users/remove-role",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "users", "remove-role"]
+            },
+            "description": "Remove role from user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rbac/users/{{userId}}/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "users", "{{userId}}", "roles"]
+            },
+            "description": "Get all roles assigned to user."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permission\": \"properties:write\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rbac/check-permission",
+              "host": ["{{baseUrl}}"],
+              "path": ["rbac", "check-permission"]
+            },
+            "description": "Check if current user has specific permission."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. ACL (Access Control List)",
+      "item": [
+        {
+          "name": "Grant Access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"Property\",\n  \"resourceId\": \"{{propertyId}}\",\n  \"userId\": \"{{userId}}\",\n  \"permissions\": [\"read\", \"write\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/acl/grant",
+              "host": ["{{baseUrl}}"],
+              "path": ["acl", "grant"]
+            },
+            "description": "Grant resource-level access to user."
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"Property\",\n  \"resourceId\": \"{{propertyId}}\",\n  \"userId\": \"{{userId}}\",\n  \"permissions\": [\"write\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/acl/revoke",
+              "host": ["{{baseUrl}}"],
+              "path": ["acl", "revoke"]
+            },
+            "description": "Revoke resource-level access from user."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"Property\",\n  \"resourceId\": \"{{propertyId}}\",\n  \"permission\": \"write\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/acl/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["acl", "check"]
+            },
+            "description": "Check if current user has access to resource."
+          },
+          "response": []
+        },
+        {
+          "name": "List User Access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/acl/users/{{userId}}/access",
+              "host": ["{{baseUrl}}"],
+              "path": ["acl", "users", "{{userId}}", "access"]
+            },
+            "description": "List all resources user has access to."
+          },
+          "response": []
+        },
+        {
+          "name": "List Resource Access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/acl/resources/Property/{{propertyId}}/access",
+              "host": ["{{baseUrl}}"],
+              "path": ["acl", "resources", "Property", "{{propertyId}}", "access"]
+            },
+            "description": "List all users with access to resource."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. Invoices",
+      "item": [
+        {
+          "name": "Get Invoice By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/:invoiceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", ":invoiceId"],
+              "variable": [
+                {
+                  "key": "invoiceId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get invoice details."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Invoice PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/:invoiceId/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", ":invoiceId", "pdf"],
+              "variable": [
+                {
+                  "key": "invoiceId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Download invoice as PDF."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

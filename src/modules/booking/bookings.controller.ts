@@ -9,15 +9,15 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/common/guards';
-import { CurrentUser } from '@/common/decorators';
+import {
+  CurrentUser,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
+import { RequirePermissions } from '@/modules/rbac/decorators';
+import { Permissions } from '@/modules/rbac/constants';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto, UpdateBookingDto, CancelBookingDto } from './dto';
 
@@ -29,8 +29,12 @@ export class BookingsController {
   constructor(private bookingsService: BookingsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create new booking' })
-  @ApiCreatedResponse({ description: 'Booking created successfully' })
+  @RequirePermissions([Permissions.BOOKING.CREATE])
+  @ApiOperationDecorator({
+    summary: 'Create new booking',
+    bodyType: CreateBookingDto,
+    exclude: [ApiResponseType.Forbidden, ApiResponseType.NotFound],
+  })
   async create(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateBookingDto,
@@ -39,8 +43,13 @@ export class BookingsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get user bookings' })
-  @ApiOkResponse({ description: 'List of bookings' })
+  @RequirePermissions([Permissions.BOOKING.READ])
+  @ApiOperationDecorator({
+    summary: 'Get user bookings',
+    description:
+      'Retrieve all bookings for the current user with optional status filter',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async findByUser(
     @CurrentUser('id') userId: string,
     @Query('status') status?: string,
@@ -49,22 +58,35 @@ export class BookingsController {
   }
 
   @Get('stats')
-  @ApiOperation({ summary: 'Get booking statistics' })
-  @ApiOkResponse({ description: 'Booking statistics' })
+  @RequirePermissions([Permissions.BOOKING.READ])
+  @ApiOperationDecorator({
+    summary: 'Get booking statistics',
+    description: 'Get booking statistics for the current user',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.UnprocessableEntity],
+  })
   async getStats(@CurrentUser('id') userId: string) {
     return this.bookingsService.getStats(userId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get booking details' })
-  @ApiOkResponse({ description: 'Booking details' })
+  @RequirePermissions([Permissions.BOOKING.READ])
+  @ApiOperationDecorator({
+    summary: 'Get booking details',
+    description: 'Retrieve detailed information for a specific booking',
+    exclude: [ApiResponseType.BadRequest],
+  })
   async findOne(@Param('id') id: string) {
     return this.bookingsService.findOne(id);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update booking' })
-  @ApiOkResponse({ description: 'Booking updated' })
+  @RequirePermissions([Permissions.BOOKING.UPDATE])
+  @ApiOperationDecorator({
+    summary: 'Update booking',
+    bodyType: UpdateBookingDto,
+    description: 'Update booking details',
+    exclude: [ApiResponseType.Forbidden],
+  })
   async update(
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
@@ -74,15 +96,24 @@ export class BookingsController {
   }
 
   @Post(':id/confirm')
-  @ApiOperation({ summary: 'Confirm booking' })
-  @ApiOkResponse({ description: 'Booking confirmed' })
+  @RequirePermissions([Permissions.BOOKING.CONFIRM])
+  @ApiOperationDecorator({
+    summary: 'Confirm booking',
+    description: 'Mark booking as confirmed',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Forbidden],
+  })
   async confirm(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.bookingsService.confirm(id, userId);
   }
 
   @Post(':id/cancel')
-  @ApiOperation({ summary: 'Cancel booking' })
-  @ApiOkResponse({ description: 'Booking cancelled' })
+  @RequirePermissions([Permissions.BOOKING.CANCEL])
+  @ApiOperationDecorator({
+    summary: 'Cancel booking',
+    bodyType: CancelBookingDto,
+    description: 'Cancel booking with reason (triggers saga compensation)',
+    exclude: [ApiResponseType.Forbidden],
+  })
   async cancel(
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
@@ -92,18 +123,23 @@ export class BookingsController {
   }
 
   @Post(':id/refund')
-  @ApiOperation({ summary: 'Confirm refund' })
-  @ApiOkResponse({ description: 'Refund confirmed' })
-  async confirmRefund(
-    @Param('id') id: string,
-    @CurrentUser('id') userId: string,
-  ) {
-    return this.bookingsService.confirmRefund(id, userId);
+  @RequirePermissions([Permissions.BOOKING.REFUND])
+  @ApiOperationDecorator({
+    summary: 'Confirm refund',
+    description: 'Confirm and process booking refund',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Forbidden],
+  })
+  async confirmRefund(@Param('id') id: string) {
+    return this.bookingsService.confirmRefund(id);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete booking' })
-  @ApiOkResponse({ description: 'Booking deleted' })
+  @RequirePermissions([Permissions.BOOKING.DELETE])
+  @ApiOperationDecorator({
+    summary: 'Delete booking',
+    description: 'Permanently delete a booking',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Forbidden],
+  })
   async delete(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.bookingsService.delete(id, userId);
   }

@@ -10,7 +10,7 @@ datasource db {
 //
 // ===== Enums =====
 //
-enum SystemRole { // enum hệ thống gán trực tiếp trên bảng users
+enum SystemRole {
   USER
   ADMIN
   MODERATOR
@@ -35,10 +35,10 @@ enum AttachmentEntity {
 }
 
 enum OutboxStatus {
-  PENDING     // mới ghi trong tx, chưa enqueue
-  ENQUEUED    // đã đẩy vào queue (BullMQ)
-  SENT        // đã xử lý OK
-  FAILED      // xử lý lỗi (sẽ retry)
+  PENDING // mới ghi trong tx, chưa enqueue
+  ENQUEUED // đã đẩy vào queue (BullMQ)
+  SENT // đã xử lý OK
+  FAILED // xử lý lỗi (sẽ retry)
   CANCELLED
 }
 
@@ -48,78 +48,164 @@ enum ACLEffect {
 }
 
 enum BookingStatus {
-  DRAFT         // Booking đang chỉnh sửa
-  PENDING       // Chờ xác nhận
-  CONFIRMED     // Đã xác nhận
-  IN_PROGRESS   // Đang diễn ra
-  COMPLETED     // Hoàn thành
-  CANCELLED     // Đã hủy
+  DRAFT // Booking đang chỉnh sửa
+  PENDING // Chờ xác nhận
+  CONFIRMED // Đã xác nhận
+  IN_PROGRESS // Đang diễn ra
+  COMPLETED // Hoàn thành
+  CANCELLED // Đã hủy
   REFUND_PENDING // Chờ hoàn tiền
-  REFUNDED      // Đã hoàn tiền
+  REFUNDED // Đã hoàn tiền
+  HOLD // Hold inventory
+  REVIEW // Fraud review
+  PAID // Payment successful
+}
+
+enum RedemptionStatus {
+  RESERVED
+  APPLIED
+  RELEASED
+}
+
+enum IdemStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  TOKEN_REVOKE
+  REFRESH_REUSE
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  MFA_ENABLED
+  MFA_DISABLED
+  MFA_VERIFY_FAILED
+  ROLE_CHANGED
+  PERMISSION_CHANGED
+  DEVICE_ADDED
+  DEVICE_REMOVED
+  SUSPICIOUS_ACTIVITY
+}
+
+enum ReviewStatus {
+  ACTIVE
+  DELETED
+  FLAGGED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  AUTO_DECLINED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum NotiChannel {
+  INAPP
+  EMAIL
+  PUSH
+  WEBHOOK
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  READ
+  FAILED
+  CANCELLED
 }
 
 //
 // ===== Core Models =====
 //
 model User {
-  id            String            @id @default(cuid())
-  email         String            @unique @db.Citext
+  id            String     @id @default(cuid())
+  email         String     @unique @db.Citext
   password      String
   firstName     String
   lastName      String
-  role          SystemRole        @default(USER)  // enum hệ thống cơ bản
-  isActive      Boolean           @default(true)
-  emailVerified Boolean           @default(false)
+  role          SystemRole @default(USER) // enum hệ thống cơ bản
+  isActive      Boolean    @default(true)
+  emailVerified Boolean    @default(false)
   lastLoginAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  version       Int        @default(0) // Cache invalidation version
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime? // Soft delete timestamp
 
   // Relations
   refreshTokens      RefreshToken[]
   verificationTokens VerificationToken[]
-  userRoles          UserRole[]         // RBAC gán role động
+  userRoles          UserRole[] // RBAC gán role động
   resourceACL        ResourceACL[]
   bookings           Booking[]
+  sessions           UserSession[]
+  securityEvents     SecurityEvent[]
+  auditLogs          AuditLog[]
+  properties         Property[]          @relation("HostProperties")
+  customerBookings   PropertyBooking[]   @relation("CustomerBookings")
+  reviews            Review[]            @relation("ReviewAuthor")
+  fraudReviews       FraudAssessment[]
+  mfa                UserMfa?
+  userTokens         UserToken[]
+  notifications      Notification[]
+  notiPreferences    NotiPreference[]    @relation("NotiPreferences")
 
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([deletedAt]) // For soft delete queries
   @@map("users")
 }
 
 model RefreshToken {
-  id         String   @id @default(cuid())
-  tokenHash  String   @unique                  // lưu hash thay vì token thô
-  userId     String
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime @default(now())
+  id        String    @id @default(cuid())
+  tokenHash String    @unique // lưu hash thay vì token thô
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
   // (optional) audit
-  ip         String?
-  userAgent  String?
+  ip        String?
+  userAgent String?
 
   // Relations
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
   @@index([userId, expiresAt])
-  @@index([userId, revokedAt])               // truy vấn token còn hiệu lực nhanh
+  @@index([userId, revokedAt]) // truy vấn token còn hiệu lực nhanh
   @@map("refresh_tokens")
 }
 
 model VerificationToken {
-  id         String     @id @default(cuid())
-  tokenHash  String     @unique                 // lưu hash
-  type       TokenType
-  userId     String
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime   @default(now())
+  id        String    @id @default(cuid())
+  tokenHash String    @unique // lưu hash
+  type      TokenType
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   // Relations
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
@@ -129,17 +215,17 @@ model VerificationToken {
 }
 
 model FileObject {
-  id           String      @id @default(uuid())
-  bucket       String
-  key          String      @unique
-  mime         String
-  size         BigInt?
-  status       FileStatus  @default(UPLOADING)
-  thumbKey     String?
-  width        Int?
-  height       Int?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id        String     @id @default(uuid())
+  bucket    String
+  key       String     @unique
+  mime      String
+  size      BigInt?
+  status    FileStatus @default(UPLOADING)
+  thumbKey  String?
+  width     Int?
+  height    Int?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   // === audit/enforce (khớp FilesService) ===
   declaredMime String?
@@ -149,7 +235,8 @@ model FileObject {
   completedAt  DateTime?
 
   // Relations
-  attachments  FileAttachment[]
+  attachments   FileAttachment[]
+  propertyFiles PropertyFile[]
 
   @@index([status])
   @@index([createdAt])
@@ -158,53 +245,26 @@ model FileObject {
 }
 
 model FileAttachment {
-  id          String          @id @default(uuid())
-  fileId      String
-  entityType  AttachmentEntity
-  entityId    String
-  createdAt   DateTime        @default(now())
+  id         String           @id @default(uuid())
+  fileId     String
+  entityType AttachmentEntity
+  entityId   String
+  createdAt  DateTime         @default(now())
 
   // Relations
-  file        FileObject      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  file FileObject @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
-  @@unique([fileId, entityType, entityId])   // chống gắn trùng 1 file vào cùng entity
+  @@unique([fileId, entityType, entityId]) // chống gắn trùng 1 file vào cùng entity
   @@index([fileId])
   @@index([entityType, entityId])
   @@map("file_attachments")
 }
 
-model Idempotency {
-  id              String    @id @default(uuid())
-  key             String    @unique
-  method          String
-  path            String
-  userId          String?
-  status          String    @default("PENDING") // PENDING|COMPLETED|FAILED
-  requestPayload  Json?
-  responsePayload Json?
-  retries         Int       @default(0)
-
-  // Mở rộng: claim/TTL/phát hiện trùng nội dung
-  lockedAt        DateTime?
-  lockedBy        String?
-  expiresAt       DateTime?
-  requestHash     String?
-
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
-  @@index([expiresAt])
-  @@map("idempotency")
-}
-
 model OutboxEvent {
   id         String       @id @default(cuid())
-  topic      String                       // ví dụ: "user.events", "order.events"
-  key        String                       // partition/dedupe key (vd: userId/orderId)
-  payload    Json                         // { type: "...", ... }
+  topic      String // ví dụ: "user.events", "order.events"
+  key        String // partition/dedupe key (vd: userId/orderId)
+  payload    Json // { type: "...", ... }
   status     OutboxStatus @default(PENDING)
   attempts   Int          @default(0)
   error      String?
@@ -213,19 +273,20 @@ model OutboxEvent {
   sentAt     DateTime?
 
   // (tuỳ chọn) chặn enqueue trùng từ nghiệp vụ
-  dedupeKey  String?      @unique
+  dedupeKey String? @unique
 
   @@index([status, createdAt])
   @@index([topic, status, createdAt])
   @@index([enqueuedAt])
   @@index([sentAt])
+  @@index([status, attempts, createdAt]) // For retry queries
   @@map("outbox_events")
 }
 
 //
 // ===== RBAC & ACL =====
 //
-model Role {                   // RBAC Role (model), KHÁC với enum SystemRole
+model Role {
   id        String   @id @default(uuid())
   name      String   @unique
   desc      String?
@@ -240,6 +301,7 @@ model Role {                   // RBAC Role (model), KHÁC với enum SystemRole
 
 model Permission {
   id        String   @id @default(uuid())
+  name      String   @unique // e.g. "booking.create", "user.read"
   action    String
   subject   String
   desc      String?
@@ -248,6 +310,7 @@ model Permission {
   rolePerms RolePermission[]
 
   @@unique([action, subject], name: "action_subject")
+  @@index([name])
   @@map("permissions")
 }
 
@@ -256,10 +319,12 @@ model RolePermission {
   permissionId String
   createdAt    DateTime @default(now())
 
-  role        Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission  Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
   @@map("role_permissions")
 }
 
@@ -274,24 +339,27 @@ model UserRole {
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId], name: "user_role_unique") // nếu cần time-range, thêm EXCLUDE bằng SQL
+  @@index([userId])
+  @@index([roleId])
   @@map("user_roles")
 }
 
 model ResourceACL {
   id           String    @id @default(uuid())
-  userId       String
+  userId       String?
+  roleId       String?
   resourceType String
   resourceId   String
-  action       String
+  permissions  Json      @default("[]") // Array of permission strings
   effect       ACLEffect @default(ALLOW)
-  conditions   Json?     // ABAC nhẹ (tùy chọn)
+  conditions   Json? // ABAC nhẹ (tùy chọn)
   createdAt    DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, resourceType, resourceId, action], name: "user_resource_action_unique")
+  @@index([userId, resourceType, resourceId])
+  @@index([roleId, resourceType, resourceId])
   @@index([resourceType, resourceId])
-  @@index([userId, action]) // truy vấn nhanh theo user + action
   @@map("resource_acl")
 }
 
@@ -299,55 +367,532 @@ model ResourceACL {
 // ===== Booking System =====
 //
 model Booking {
-  id            String        @id @default(cuid())
-  userId        String        // Người tạo booking
-  status        BookingStatus @default(DRAFT)
+  id     String        @id @default(cuid())
+  userId String // Người tạo booking
+  status BookingStatus @default(DRAFT)
 
   // Booking info
-  title         String
-  description   String?
-  notes         String?
+  title       String
+  description String?
+  notes       String?
 
   // Pricing
-  amount        Decimal       @db.Decimal(12, 2)       // Giá tiền
-  currency      String        @default("VND")          // Tiền tệ
-  discount      Decimal?      @db.Decimal(12, 2)       // Giảm giá
-  tax           Decimal?      @db.Decimal(12, 2)       // Thuế
-  finalAmount   Decimal       @db.Decimal(12, 2)       // Số tiền cuối cùng
+  amount      Decimal  @db.Decimal(12, 2) // Giá tiền
+  currency    String   @default("VND") // Tiền tệ
+  discount    Decimal? @db.Decimal(12, 2) // Giảm giá
+  tax         Decimal? @db.Decimal(12, 2) // Thuế
+  finalAmount Decimal  @db.Decimal(12, 2) // Số tiền cuối cùng
 
   // Time info
-  startTime     DateTime
-  endTime       DateTime
-  duration      Int?                                   // Duration in minutes (calculated)
-  timezone      String?       @default("Asia/Ho_Chi_Minh")
+  startTime DateTime
+  endTime   DateTime
+  duration  Int? // Duration in minutes (calculated)
+  timezone  String?  @default("Asia/Ho_Chi_Minh")
 
   // Metadata
-  metadata      Json?
-  tags          String[]      @default([])
+  metadata Json?
+  tags     String[] @default([])
 
   // Status tracking
-  confirmedAt   DateTime?
-  startedAt     DateTime?
-  completedAt   DateTime?
-  cancelledAt   DateTime?
+  confirmedAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
 
   // Refund info
-  refundAmount  Decimal?      @db.Decimal(12, 2)
-  refundReason  String?
-  refundedAt    DateTime?
+  refundAmount Decimal?  @db.Decimal(12, 2)
+  refundReason String?
+  refundedAt   DateTime?
 
   // Audit
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete timestamp
 
   // Relations
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@index([startTime])
   @@index([userId, status])
+  @@index([deletedAt]) // For soft delete queries
+  // Composite indexes for performance optimization
+  @@index([userId, status, createdAt(sort: Desc)]) // For user's bookings list with status filter
+  @@index([userId, startTime, endTime]) // For user's booking calendar queries
+  @@index([status, startTime]) // For processing upcoming bookings by status
+  @@index([status, createdAt(sort: Desc)]) // For admin dashboard queries
   @@map("bookings")
+}
+
+//
+// ===== Security & Audit =====
+//
+model SecurityEvent {
+  id        String            @id @default(uuid())
+  userId    String?
+  sessionId String?
+  type      SecurityEventType
+  ip        String?           @db.Inet
+  userAgent String?
+  deviceFp  String?
+  meta      Json?
+  createdAt DateTime          @default(now())
+
+  user    User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session UserSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
+  @@index([sessionId])
+  @@map("security_events")
+}
+
+model UserSession {
+  id            String    @id @default(uuid())
+  userId        String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  ip            String?
+  userAgent     String?
+  deviceFp      String?
+  createdAt     DateTime  @default(now())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  securityEvents SecurityEvent[]
+
+  @@index([userId, expiresAt])
+  @@map("user_sessions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+//
+// ===== Idempotency =====
+//
+model Idempotency {
+  id          String     @id @default(uuid())
+  userId      String?
+  endpoint    String // e.g. "POST /bookings/hold"
+  key         String // from header: Idempotency-Key
+  requestHash String // sha256(payload)
+  status      IdemStatus @default(IN_PROGRESS)
+  resourceId  String? // bookingId / paymentId
+  response    Json?
+  error       Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  expiresAt   DateTime
+
+  @@unique([userId, endpoint, key])
+  @@index([endpoint, createdAt])
+  @@index([expiresAt])
+  @@map("idempotency")
+}
+
+//
+// ===== Property & Reviews =====
+//
+model Property {
+  id          String  @id @default(uuid())
+  hostId      String
+  title       String
+  address     String
+  description String?
+
+  lat       Float? @db.DoublePrecision
+  lng       Float? @db.DoublePrecision
+  amenities Json?  @default(dbgenerated("'{}'::jsonb"))
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  host          User              @relation("HostProperties", fields: [hostId], references: [id], onDelete: Cascade)
+  availability  AvailabilityDay[]
+  bookings      PropertyBooking[]
+  reviews       Review[]
+  mediaLinks    PropertyFile[]
+  conversations Conversation[]
+
+  ratingCount     Int       @default(0)
+  ratingAvg       Float     @default(0)
+  ratingUpdatedAt DateTime?
+
+  @@index([hostId])
+  // Composite indexes for search and filtering
+  @@index([hostId, createdAt(sort: Desc)]) // For host's property management
+  @@index([lat, lng]) // For geospatial queries
+  @@index([ratingAvg(sort: Desc), createdAt(sort: Desc)]) // For sorting by rating
+  @@map("properties")
+}
+
+model PropertyFile {
+  id         String    @id @default(uuid())
+  propertyId String
+  fileId     String
+  type       MediaType @default(IMAGE)
+  isCover    Boolean   @default(false)
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  property Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  file     FileObject @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, fileId])
+  @@index([propertyId, isCover])
+  @@map("property_files")
+}
+
+model AvailabilityDay {
+  id         String   @id @default(uuid())
+  propertyId String
+  date       DateTime // UTC 00:00
+  price      Int
+  remaining  Int
+  isBlocked  Boolean  @default(false)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, date])
+  @@index([propertyId, date])
+  @@map("availability_days")
+}
+
+model PropertyBooking {
+  id             String        @id @default(uuid())
+  propertyId     String
+  customerId     String
+  checkIn        DateTime
+  checkOut       DateTime
+  status         BookingStatus @default(DRAFT)
+  totalPrice     Int
+  promoCode      String?       @db.Citext
+  holdExpiresAt  DateTime?
+  discountAmount Int           @default(0)
+
+  appliedPromotionId String?
+  appliedPromotion   Promotion? @relation(fields: [appliedPromotionId], references: [id])
+
+  cancelPolicyId       String?
+  cancelPolicy         CancelPolicy? @relation(fields: [cancelPolicyId], references: [id])
+  cancelPolicySnapshot Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property             Property              @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  customer             User                  @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Restrict)
+  payment              Payment?
+  review               Review?
+  fraudAssessment      FraudAssessment?
+  promotionRedemptions PromotionRedemption[]
+
+  reviewDeadlineAt DateTime?
+
+  @@index([propertyId])
+  @@index([customerId])
+  @@index([checkIn, checkOut])
+  @@index([propertyId, status])
+  @@index([status, holdExpiresAt])
+  @@index([status, reviewDeadlineAt])
+  @@index([propertyId, customerId, checkOut])
+  // Additional composite indexes for query optimization
+  @@index([customerId, status, createdAt(sort: Desc)]) // For customer's booking history
+  @@index([customerId, checkIn, checkOut]) // For customer's booking calendar
+  @@index([propertyId, checkIn, checkOut]) // For property availability checks
+  @@map("property_bookings")
+}
+
+model Review {
+  id         String       @id @default(uuid())
+  bookingId  String       @unique
+  propertyId String
+  authorId   String
+  rating     Int
+  body       String?
+  status     ReviewStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  booking  PropertyBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  property Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  author   User            @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, status, createdAt, id])
+  @@index([authorId, createdAt])
+  @@map("reviews")
+}
+
+model FraudAssessment {
+  id        String        @id @default(uuid())
+  bookingId String        @unique
+  userId    String
+  score     Int
+  level     RiskLevel
+  decision  FraudDecision @default(PENDING)
+  reasons   Json
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewedNote String?
+
+  reviewer User?           @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  booking  PropertyBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([level, decision])
+  @@map("fraud_assessments")
+}
+
+model Promotion {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  description String?
+  type        String   @default("FIXED") // FIXED or PERCENT
+  value       Int      // discount amount or percentage
+  discount    Int      @default(0) // deprecated, use value
+  minNights   Int?
+  minTotal    Int?
+  maxUses     Int?
+  usageLimit  Int?
+  usedCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  validFrom   DateTime @default(now())
+  validTo     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings    PropertyBooking[]
+  redemptions PromotionRedemption[]
+
+  @@map("promotions")
+}
+
+model PromotionRedemption {
+  id          String @id @default(uuid())
+  promotionId String
+  bookingId   String @unique
+  userId      String
+
+  code   String
+  amount Int
+  status RedemptionStatus @default(RESERVED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  promotion Promotion       @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+  booking   PropertyBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, status])
+  @@index([userId])
+  @@map("promotion_redemptions")
+}
+
+model CancelPolicy {
+  id          String   @id @default(uuid())
+  name        String
+  rules       Json // CancelRule[]
+  checkInHour Int?
+  cutoffHour  Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bookings PropertyBooking[]
+
+  @@map("cancel_policies")
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  amount    Int
+  currency  String   @default("USD")
+  provider  String   @default("STRIPE")
+  intentId  String?
+  chargeId  String?
+  status    String   @default("PENDING")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete timestamp
+
+  booking PropertyBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  refunds Refund[]
+
+  @@index([intentId])
+  @@index([chargeId])
+  @@index([deletedAt]) // For soft delete queries
+  @@index([provider, status, createdAt(sort: Desc)]) // For analytics queries (provider/status/time)
+  @@index([status, createdAt]) // For timeout and cleanup jobs
+  @@map("payments")
+}
+
+model Refund {
+  id        String   @id @default(uuid())
+  paymentId String
+  amount    Int
+  status    String   @default("PENDING")
+  providerRefundId String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("refunds")
+}
+
+model ProcessedWebhook {
+  id            String   @id @default(uuid())
+  provider      String   // STRIPE, VNPAY, etc
+  eventId       String
+  intentId      String?
+  chargeId      String?
+  eventType     String
+  payload       Json
+  processedAt   DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, intentId])
+  @@map("processed_webhooks")
+}
+
+// MFA and advanced auth models
+model UserMfa {
+  userId String @id
+
+  totpSecret        String?
+  totpEnabled       Boolean   @default(false)
+  totpVerifiedAt    DateTime?
+  recoveryKeyHash   String?
+  recoveryKeyUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  backupCodes BackupCode[]
+
+  @@map("user_mfas")
+}
+
+model BackupCode {
+  id String @id @default(uuid())
+
+  userMfaId String
+  codeHash  String
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  userMfa UserMfa @relation(fields: [userMfaId], references: [userId], onDelete: Cascade)
+
+  @@index([userMfaId, usedAt])
+  @@map("backup_codes")
+}
+
+model UserToken {
+  id String @id @default(uuid())
+
+  userId    String
+  type      String // e.g., DEVICE_APPROVAL, EMAIL_VERIFICATION_V2
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  meta      Json? // Store context like sessionId, ip, ua, fp, etc.
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+  @@index([type, expiresAt])
+  @@map("user_tokens")
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("conversations")
+}
+
+//
+// ===== Notifications =====
+//
+model Notification {
+  id            String               @id @default(cuid())
+  userId        String
+  key           String               // e.g., "booking.confirmed", "review.requested"
+  channel       NotiChannel
+  title         String?
+  body          String?
+  data          Json? // Full notification content
+  status        NotificationStatus   @default(PENDING)
+  
+  // Deduplication
+  dedupeKey     String?
+
+  // Delivery
+  deliverAfter  DateTime?
+  sentAt        DateTime?
+  readAt        DateTime?
+  
+  // Retry handling
+  attempts      Int                  @default(0)
+  lastError     String?
+  processingAt  DateTime?
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, userId, dedupeKey], name: "noti_dedupe")
+  @@index([userId, channel, status])
+  @@index([userId, readAt])
+  @@index([status, deliverAfter, createdAt])
+  @@index([processingAt])
+  @@map("notifications")
+}
+
+model NotiPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   // notification type key
+  inapp     Boolean  @default(true)
+  email     Boolean  @default(true)
+  push      Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("NotiPreferences", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("notification_preferences")
 }
 

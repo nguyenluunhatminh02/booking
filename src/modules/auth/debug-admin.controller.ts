@@ -1,11 +1,19 @@
 import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { SystemRole } from '@prisma/client';
 import { hashToken } from '@/common/utils';
+import {
+  ApiOperationDecorator,
+  ApiResponseType,
+  Public,
+} from '@/common/decorators';
 
+@ApiTags('Debug - Admin')
+@Public()
 @Controller('debug/admin')
 export class DebugAdminController {
   constructor(
@@ -16,6 +24,12 @@ export class DebugAdminController {
   ) {}
 
   @Post('create')
+  @ApiOperationDecorator({
+    summary: 'Create admin user (debug only)',
+    description:
+      'Create or promote admin user - only available in development environment',
+    exclude: [ApiResponseType.Unauthorized],
+  })
   async createAdmin(
     @Body() body: { email?: string; password?: string; name?: string },
   ) {
@@ -56,14 +70,14 @@ export class DebugAdminController {
     };
 
     const accessToken = await this.jwt.signAsync(payload, {
-      secret: this.config.get('JWT_SECRET'),
+      secret: this.config.get('JWT_SECRET') as string,
       expiresIn: this.config.get('JWT_EXPIRES_IN') || '1d',
-    } as any);
+    });
 
     const refreshToken = await this.jwt.signAsync(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET'),
+      secret: this.config.get('JWT_REFRESH_SECRET') as string,
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN') || '7d',
-    } as any);
+    });
 
     // Parse refresh expires to Date (support formats like '7d', '1h')
     const parseExpires = (s: string) => {

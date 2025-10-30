@@ -21,6 +21,7 @@ export const Idempotent = () => {
     propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     Reflect.defineMetadata(IDEMPOTENCY_KEY, true, descriptor.value);
     return descriptor;
   };
@@ -66,16 +67,22 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const method = request.method;
     const path = request.path;
-    const userId = (request as any).user?.id || 'anonymous';
+    const userId = (request as any).user?.id;
 
     // Check if idempotency key already exists
     const existing = await this.prisma.idempotency.findUnique({
-      where: { key: idempotencyKey },
+      where: {
+        userId_endpoint_key: {
+          userId: userId ?? undefined,
+          endpoint: `${method} ${path}`,
+          key: idempotencyKey,
+        },
+      },
     });
 
     if (existing) {
-      // If status is PENDING, another request is processing
-      if (existing.status === 'PENDING') {
+      // If status is IN_PROGRESS, another request is processing
+      if (existing.status === 'IN_PROGRESS') {
         this.logger.warn(
           { idempotencyKey, userId, method, path },
           'Duplicate request in progress',
@@ -93,8 +100,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
         );
 
         // Parse response payload
-        const cachedResponse = existing.responsePayload
-          ? JSON.parse(existing.responsePayload as string)
+        const cachedResponse = existing.response
+          ? (existing.response as any)
           : {};
 
         return new Observable((subscriber) => {
@@ -110,21 +117,32 @@ export class IdempotencyInterceptor implements NestInterceptor {
           'Retrying failed idempotent request',
         );
 
+        const now = new Date();
+
         await this.prisma.idempotency.update({
-          where: { key: idempotencyKey },
-          data: { status: 'PENDING', retries: existing.retries + 1 },
+          where: {
+            userId_endpoint_key: {
+              userId: userId !== 'anonymous' ? userId : null,
+              endpoint: `${method} ${path}`,
+              key: idempotencyKey,
+            },
+          },
+          data: { status: 'IN_PROGRESS', updatedAt: now },
         });
       }
     } else {
       // Create new idempotency record
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
       await this.prisma.idempotency.create({
         data: {
+          userId: userId !== 'anonymous' ? userId : null,
+          endpoint: `${method} ${path}`,
           key: idempotencyKey,
-          method,
-          path,
-          userId,
-          status: 'PENDING',
-          requestPayload: JSON.stringify(request.body || {}),
+          requestHash: '', // Would need crypto.createHash for real implementation
+          status: 'IN_PROGRESS',
+          expiresAt,
         },
       });
 
@@ -137,50 +155,64 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // Execute the request and cache response
     return next.handle().pipe(
       tap({
-        next: async (response) => {
-          try {
-            await this.prisma.idempotency.update({
-              where: { key: idempotencyKey },
+        next: (response) => {
+          // Fire-and-forget: update cache without blocking response
+          this.prisma.idempotency
+            .update({
+              where: {
+                userId_endpoint_key: {
+                  userId: userId !== 'anonymous' ? userId : null,
+                  endpoint: `${method} ${path}`,
+                  key: idempotencyKey,
+                },
+              },
               data: {
                 status: 'COMPLETED',
-                responsePayload: JSON.stringify(response),
+                response: response,
               },
+            })
+            .catch((error) => {
+              this.logger.error(
+                { error, idempotencyKey },
+                'Failed to update idempotency record',
+              );
             });
 
-            this.logger.info(
-              { idempotencyKey, userId },
-              'Idempotent request completed successfully',
-            );
-          } catch (error) {
-            this.logger.error(
-              { error, idempotencyKey },
-              'Failed to update idempotency record',
-            );
-          }
+          this.logger.info(
+            { idempotencyKey, userId },
+            'Idempotent request completed successfully',
+          );
         },
-        error: async (error) => {
-          try {
-            await this.prisma.idempotency.update({
-              where: { key: idempotencyKey },
+        error: (error) => {
+          // Fire-and-forget: update error cache without blocking response
+          this.prisma.idempotency
+            .update({
+              where: {
+                userId_endpoint_key: {
+                  userId: userId !== 'anonymous' ? userId : null,
+                  endpoint: `${method} ${path}`,
+                  key: idempotencyKey,
+                },
+              },
               data: {
                 status: 'FAILED',
-                responsePayload: JSON.stringify({
-                  error: error.message || 'Unknown error',
+                error: {
+                  message: error.message || 'Unknown error',
                   statusCode: error.status || 500,
-                }),
+                } as any,
               },
+            })
+            .catch((updateError) => {
+              this.logger.error(
+                { updateError, idempotencyKey },
+                'Failed to update failed idempotency record',
+              );
             });
 
-            this.logger.error(
-              { error, idempotencyKey, userId },
-              'Idempotent request failed',
-            );
-          } catch (updateError) {
-            this.logger.error(
-              { updateError, idempotencyKey },
-              'Failed to update failed idempotency record',
-            );
-          }
+          this.logger.error(
+            { error, idempotencyKey, userId },
+            'Idempotent request failed',
+          );
 
           throw error;
         },

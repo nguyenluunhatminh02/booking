@@ -1,0 +1,42 @@
+### Variables
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### 1. Seed RBAC Data
+POST {{baseUrl}}/rbac/admin/seed
+Content-Type: {{contentType}}
+
+### 2. Create Test User (after adding @Public to POST /users)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "Test@123456",
+  "name": "Test User"
+}
+
+### 3. Login to get JWT token
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "Test@123456"
+}
+
+### 4. Get bookings (should succeed - has booking.read with 'user' role)
+GET {{baseUrl}}/bookings
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 5. Try to refund booking (should fail - need booking.refund permission)
+POST {{baseUrl}}/bookings/1/refund
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 6. Check error structure
+GET {{baseUrl}}/bookings/invalid-id
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 7. Test rate limit (call multiple times to exceed 120 req/min)
+GET {{baseUrl}}/bookings
+Authorization: Bearer YOUR_JWT_TOKEN_HERE

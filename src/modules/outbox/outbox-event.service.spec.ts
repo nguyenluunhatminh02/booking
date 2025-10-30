@@ -54,4 +54,3 @@ describe('OutboxEventService', () => {
     expect(result).toEqual({ count: 2 });
   });
 });
-

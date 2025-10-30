@@ -8,15 +8,13 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import {
+  Roles,
+  ApiOperationDecorator,
+  ApiResponseType,
+} from '@/common/decorators';
 import { SystemRole } from '@prisma/client';
 import { RolesService } from './roles.service';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
@@ -30,48 +28,68 @@ export class RolesController {
 
   @Post()
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Create new role' })
-  @ApiCreatedResponse({ description: 'Role created successfully' })
+  @ApiOperationDecorator({
+    summary: 'Create new role',
+    description: 'Create a new system role',
+    bodyType: CreateRoleDto,
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Unauthorized],
+  })
   async create(@Body() dto: CreateRoleDto) {
     return this.rolesService.create(dto);
   }
 
   @Get()
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get all roles' })
-  @ApiOkResponse({ description: 'List of all roles' })
+  @ApiOperationDecorator({
+    summary: 'Get all roles',
+    description: 'Retrieve list of all system roles',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.Unauthorized],
+  })
   async findAll() {
     return this.rolesService.findAll();
   }
 
   @Get(':id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Get role by ID' })
-  @ApiOkResponse({ description: 'Role details' })
+  @ApiOperationDecorator({
+    summary: 'Get role by ID',
+    description: 'Retrieve details of a specific role',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async findOne(@Param('id') id: string) {
     return this.rolesService.findOne(id);
   }
 
   @Put(':id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Update role' })
-  @ApiOkResponse({ description: 'Role updated successfully' })
+  @ApiOperationDecorator({
+    summary: 'Update role',
+    description: 'Update an existing role',
+    bodyType: UpdateRoleDto,
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.rolesService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Delete role' })
-  @ApiOkResponse({ description: 'Role deleted successfully' })
+  @ApiOperationDecorator({
+    summary: 'Delete role',
+    description: 'Delete a system role',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async delete(@Param('id') id: string) {
     return this.rolesService.delete(id);
   }
 
   @Post(':roleId/permissions/:permissionId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Add permission to role' })
-  @ApiOkResponse({ description: 'Permission added to role' })
+  @ApiOperationDecorator({
+    summary: 'Add permission to role',
+    description: 'Add a permission to a role',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async addPermission(
     @Param('roleId') roleId: string,
     @Param('permissionId') permissionId: string,
@@ -81,8 +99,11 @@ export class RolesController {
 
   @Delete(':roleId/permissions/:permissionId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Remove permission from role' })
-  @ApiOkResponse({ description: 'Permission removed from role' })
+  @ApiOperationDecorator({
+    summary: 'Remove permission from role',
+    description: 'Remove a permission from a role',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async removePermission(
     @Param('roleId') roleId: string,
     @Param('permissionId') permissionId: string,
@@ -92,8 +113,11 @@ export class RolesController {
 
   @Post(':roleId/users/:userId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Assign role to user' })
-  @ApiOkResponse({ description: 'Role assigned to user' })
+  @ApiOperationDecorator({
+    summary: 'Assign role to user',
+    description: 'Assign a role to a user',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async assignRoleToUser(
     @Param('roleId') roleId: string,
     @Param('userId') userId: string,
@@ -103,8 +127,11 @@ export class RolesController {
 
   @Delete(':roleId/users/:userId')
   @Roles(SystemRole.ADMIN)
-  @ApiOperation({ summary: 'Remove role from user' })
-  @ApiOkResponse({ description: 'Role removed from user' })
+  @ApiOperationDecorator({
+    summary: 'Remove role from user',
+    description: 'Remove a role from a user',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async removeRoleFromUser(
     @Param('roleId') roleId: string,
     @Param('userId') userId: string,
@@ -113,15 +140,22 @@ export class RolesController {
   }
 
   @Get('user/:userId/roles')
-  @ApiOperation({ summary: 'Get user roles' })
-  @ApiOkResponse({ description: 'List of user roles' })
+  @ApiOperationDecorator({
+    summary: 'Get user roles',
+    description: 'Retrieve all roles assigned to a user',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async getUserRoles(@Param('userId') userId: string) {
     return this.rolesService.getUserRoles(userId);
   }
 
   @Get('user/:userId/permissions')
-  @ApiOperation({ summary: 'Get user permissions' })
-  @ApiOkResponse({ description: 'List of user permissions' })
+  @ApiOperationDecorator({
+    summary: 'Get user permissions',
+    description:
+      'Retrieve all permissions for a user through their assigned roles',
+    exclude: [ApiResponseType.BadRequest, ApiResponseType.NotFound],
+  })
   async getUserPermissions(@Param('userId') userId: string) {
     return this.rolesService.getUserPermissions(userId);
   }

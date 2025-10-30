@@ -49,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         };
         recurse(copy);
         return copy;
-      } catch (_e) {
+      } catch {
         return undefined;
       }
     };
@@ -167,7 +167,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             'Failed to write detailed exception info in AllExceptionsFilter',
             loggingErr,
           );
-        } catch (e) {
+        } catch {
           // swallow
         }
       }

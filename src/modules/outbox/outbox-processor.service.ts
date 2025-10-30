@@ -54,7 +54,8 @@ export class OutboxProcessorService {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
       this.logger.error(`Failed to fetch pending outbox events: ${message}`);
     }
   }
@@ -72,14 +73,15 @@ export class OutboxProcessorService {
         this.cleanupOlderThanHours,
       );
 
-      const removed = typeof result === 'number' ? result : result?.count ?? 0;
+      const removed =
+        typeof result === 'number' ? result : (result?.count ?? 0);
       this.logger.log(
         `Cleaned up ${removed} sent outbox event(s) older than ${this.cleanupOlderThanHours}h`,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
       this.logger.error(`Failed to cleanup sent outbox events: ${message}`);
     }
   }
 }
-

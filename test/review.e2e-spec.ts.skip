@@ -1,0 +1,234 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { ReviewController } from '../src/modules/review/review.controller';
+import { ReviewService } from '../src/modules/review/review.service';
+import { AppModule } from '../src/app.module';
+
+describe('ReviewController (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let reviewService: ReviewService;
+
+  let testProperty: any;
+  let testUser: any;
+  let testBooking: any;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    reviewService = moduleFixture.get<ReviewService>(ReviewService);
+
+    await app.init();
+
+    // Create test data
+    testUser = await prisma.user.create({
+      data: {
+        email: 'reviewer@test.com',
+        password: 'hashed',
+        firstName: 'Reviewer',
+        lastName: 'Test',
+      },
+    });
+
+    testProperty = await prisma.property.create({
+      data: {
+        name: 'Test Property',
+        address: 'Address',
+        city: 'City',
+        country: 'Country',
+        pricePerNight: 100,
+        maxGuests: 4,
+        bedroomCount: 2,
+        bathroomCount: 1,
+      },
+    });
+
+    testBooking = await prisma.propertyBooking.create({
+      data: {
+        propertyId: testProperty.id,
+        userId: testUser.id,
+        checkInDate: new Date('2025-11-01'),
+        checkOutDate: new Date('2025-11-05'),
+        totalPrice: 400,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.review.deleteMany();
+    await prisma.propertyBooking.deleteMany();
+    await prisma.property.deleteMany();
+    await prisma.user.deleteMany();
+
+    if (app) {
+      await app.close();
+    }
+  });
+
+  afterEach(async () => {
+    await prisma.review.deleteMany();
+  });
+
+  describe('POST /reviews', () => {
+    it('should create a new review', async () => {
+      const createDto = {
+        bookingId: testBooking.id,
+        rating: 5,
+        comment: 'Excellent property and host!',
+        tags: ['clean', 'friendly', 'spacious'],
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .post('/reviews')
+        .set('Authorization', `Bearer test-token`)
+        .send(createDto)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.rating).toBe(5);
+      expect(response.body.comment).toBe(createDto.comment);
+    });
+
+    it('should fail with invalid rating', async () => {
+      const invalidDto = {
+        bookingId: testBooking.id,
+        rating: 10, // Invalid - should be 1-5
+        comment: 'Test',
+      };
+
+      await request(app.getHttpServer() as unknown as App)
+        .post('/reviews')
+        .set('Authorization', `Bearer test-token`)
+        .send(invalidDto)
+        .expect(400);
+    });
+  });
+
+  describe('GET /reviews', () => {
+    it('should list all reviews', async () => {
+      // Create test reviews
+      await prisma.review.createMany({
+        data: [
+          {
+            bookingId: testBooking.id,
+            rating: 5,
+            comment: 'Great!',
+          },
+          {
+            bookingId: testBooking.id,
+            rating: 4,
+            comment: 'Good',
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/reviews?page=1&limit=10')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should filter reviews by rating', async () => {
+      await prisma.review.createMany({
+        data: [
+          {
+            bookingId: testBooking.id,
+            rating: 5,
+            comment: '5 stars',
+          },
+          {
+            bookingId: testBooking.id,
+            rating: 2,
+            comment: '2 stars',
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/reviews?minRating=4&maxRating=5')
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+  });
+
+  describe('GET /reviews/:id', () => {
+    it('should retrieve a review by id', async () => {
+      const review = await prisma.review.create({
+        data: {
+          bookingId: testBooking.id,
+          rating: 5,
+          comment: 'Test review',
+        },
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get(`/reviews/${review.id}`)
+        .expect(200);
+
+      expect(response.body.id).toBe(review.id);
+      expect(response.body.rating).toBe(5);
+    });
+  });
+
+  describe('PATCH /reviews/:id', () => {
+    it('should update a review', async () => {
+      const review = await prisma.review.create({
+        data: {
+          bookingId: testBooking.id,
+          rating: 3,
+          comment: 'Original comment',
+        },
+      });
+
+      const updateDto = {
+        rating: 4,
+        comment: 'Updated comment',
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .patch(`/reviews/${review.id}`)
+        .set('Authorization', `Bearer test-token`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.rating).toBe(4);
+      expect(response.body.comment).toBe('Updated comment');
+    });
+  });
+
+  describe('DELETE /reviews/:id', () => {
+    it('should soft delete a review', async () => {
+      const review = await prisma.review.create({
+        data: {
+          bookingId: testBooking.id,
+          rating: 5,
+          comment: 'To delete',
+        },
+      });
+
+      await request(app.getHttpServer() as unknown as App)
+        .delete(`/reviews/${review.id}`)
+        .set('Authorization', `Bearer test-token`)
+        .expect(200);
+
+      const deleted = await prisma.review.findUnique({
+        where: { id: review.id },
+      });
+
+      // Check if soft deleted (status should be DELETED)
+      expect(deleted?.status).toBe('DELETED');
+    });
+  });
+});

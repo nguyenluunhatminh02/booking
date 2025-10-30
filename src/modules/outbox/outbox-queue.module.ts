@@ -12,4 +12,3 @@ import { Module } from '@nestjs/common';
   exports: [BullModule],
 })
 export class OutboxQueueModule {}
-

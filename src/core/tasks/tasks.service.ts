@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { QueueService } from '../queue/queue.service';
+import { OutboxDispatcher } from '@/modules/outbox/outbox.dispatcher';
 
 /**
  * Scheduled Tasks Service
@@ -11,6 +12,7 @@ import { QueueService } from '../queue/queue.service';
 export class TasksService {
   constructor(
     private readonly queueService: QueueService,
+    private readonly outboxDispatcher: OutboxDispatcher,
     @InjectPinoLogger(TasksService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -100,6 +102,28 @@ export class TasksService {
       this.logger.info({ stats }, 'Queue statistics');
     } catch (error) {
       this.logger.error({ error }, 'Failed to get queue stats');
+    }
+  }
+
+  /**
+   * Retry dead letter queue (failed outbox events) every hour
+   * Attempts to re-dispatch events that previously failed
+   */
+  @Cron(CronExpression.EVERY_HOUR, {
+    name: 'retry-dead-letter-queue',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  async handleDeadLetterQueueRetry() {
+    this.logger.info('Starting dead letter queue retry');
+
+    try {
+      const result = await this.outboxDispatcher.retryDeadLetters(3);
+      this.logger.info(
+        { retriedCount: result.retried },
+        'Dead letter queue retry completed',
+      );
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to retry dead letter queue');
     }
   }
 }

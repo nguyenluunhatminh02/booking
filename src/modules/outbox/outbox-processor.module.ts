@@ -19,4 +19,3 @@ import { OutboxQueueModule } from './outbox-queue.module';
   exports: [OutboxProcessorService],
 })
 export class OutboxProcessorModule {}
-

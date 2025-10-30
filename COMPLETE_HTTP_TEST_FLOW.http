@@ -1,0 +1,644 @@
+### =========================================
+### 📋 BOOKING APPLICATION - COMPLETE HTTP TEST FLOW
+### =========================================
+### Backend: NestJS 11 + Prisma + PostgreSQL
+### Patterns: Idempotency + Outbox + Saga + Event Handlers
+### Test Environment: http://localhost:3000
+### =========================================
+
+### ================================
+### 1️⃣ AUTHENTICATION FLOW
+### ================================
+
+### 1.1 - Register New User
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+Idempotency-Key: register-user-001-{{ $timestamp }}
+
+{
+  "email": "john@example.com",
+  "password": "SecurePassword123!",
+  "fullName": "John Doe"
+}
+
+### 1.2 - Login User
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+Idempotency-Key: login-user-001-{{ $timestamp }}
+
+{
+  "email": "john@example.com",
+  "password": "SecurePassword123!"
+}
+
+@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+@userId = user-id-from-register
+
+### ================================
+### 2️⃣ USERS MODULE - CRUD OPERATIONS
+### ================================
+
+### 2.1 - Get Current User Profile
+GET http://localhost:3000/users/me
+Authorization: {{ token }}
+Idempotency-Key: get-profile-001-{{ $timestamp }}
+
+### 2.2 - Update User Profile
+PATCH http://localhost:3000/users/{{ userId }}
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: update-profile-001-{{ $timestamp }}
+
+{
+  "fullName": "John Updated",
+  "phone": "+84912345678",
+  "address": "123 Main St, City, Country"
+}
+
+### 2.3 - Change Password
+POST http://localhost:3000/users/change-password
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: change-password-001-{{ $timestamp }}
+
+{
+  "currentPassword": "SecurePassword123!",
+  "newPassword": "NewSecurePassword456!"
+}
+
+### 2.4 - Get User by ID
+GET http://localhost:3000/users/{{ userId }}
+Authorization: {{ token }}
+
+### 2.5 - List All Users (Admin)
+GET http://localhost:3000/users?page=1&limit=10&sort=created_at:desc
+Authorization: {{ token }}
+
+### ================================
+### 3️⃣ FILES MODULE - UPLOAD & DOWNLOAD
+### ================================
+
+### 3.1 - Upload Single File
+POST http://localhost:3000/files/upload
+Authorization: {{ token }}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+Idempotency-Key: upload-file-001-{{ $timestamp }}
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="document.pdf"
+Content-Type: application/pdf
+
+< path/to/your/file.pdf
+------WebKitFormBoundary--
+
+### 3.2 - Upload Multiple Files
+POST http://localhost:3000/files/upload-multiple
+Authorization: {{ token }}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+Idempotency-Key: upload-files-001-{{ $timestamp }}
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="files"; filename="file1.pdf"
+Content-Type: application/pdf
+
+< path/to/file1.pdf
+------WebKitFormBoundary
+Content-Disposition: form-data; name="files"; filename="file2.pdf"
+Content-Type: application/pdf
+
+< path/to/file2.pdf
+------WebKitFormBoundary--
+
+### 3.3 - Get File by ID
+GET http://localhost:3000/files/{{ fileId }}
+Authorization: {{ token }}
+
+### 3.4 - List All User Files
+GET http://localhost:3000/files?page=1&limit=10
+Authorization: {{ token }}
+
+### 3.5 - Delete File
+DELETE http://localhost:3000/files/{{ fileId }}
+Authorization: {{ token }}
+Idempotency-Key: delete-file-001-{{ $timestamp }}
+
+### ================================
+### 4️⃣ BOOKING MODULE - COMPLETE SAGA FLOW
+### ================================
+
+### 4.1 - Create Booking (Triggers booking.created event)
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: create-booking-001-{{ $timestamp }}
+
+{
+  "propertyId": "property-id-123",
+  "checkInDate": "2025-11-15T14:00:00Z",
+  "checkOutDate": "2025-11-20T11:00:00Z",
+  "numberOfGuests": 2,
+  "specialRequests": "Late checkout if available",
+  "paymentMethod": "credit_card"
+}
+
+@bookingId = booking-id-from-response
+
+### 4.2 - Get Booking Details
+GET http://localhost:3000/bookings/{{ bookingId }}
+Authorization: {{ token }}
+
+### 4.3 - Confirm Booking (Triggers booking.confirmed event)
+PATCH http://localhost:3000/bookings/{{ bookingId }}/confirm
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: confirm-booking-001-{{ $timestamp }}
+
+{
+  "paymentDetails": {
+    "amount": 500.00,
+    "currency": "USD",
+    "method": "credit_card"
+  }
+}
+
+### 4.4 - Cancel Booking (Executes BookingCancellationSaga)
+PATCH http://localhost:3000/bookings/{{ bookingId }}/cancel
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: cancel-booking-001-{{ $timestamp }}
+
+{
+  "reason": "Personal emergency",
+  "requestRefund": true
+}
+
+### SAGA EXECUTION FLOW:
+###   Step 1: releaseInventory() - Releases hold on inventory
+###   Step 2: processRefund() - Processes refund payment
+###   Step 3: sendCancellationEmail() - Sends email (optional)
+###   Step 4: updateBookingStatus() - Updates booking to REFUNDED
+###
+### EVENT HANDLERS TRIGGERED:
+###   - booking.cancelled event listener
+###   - Outbox entries created for events
+
+### 4.5 - Confirm Refund (Admin only)
+PATCH http://localhost:3000/bookings/{{ bookingId }}/confirm-refund
+Authorization: {{ token }}
+Content-Type: application/json
+
+{
+  "refundId": "refund-123"
+}
+
+### 4.6 - List Bookings with Pagination
+GET http://localhost:3000/bookings?page=1&limit=10&status=CONFIRMED&sort=checkInDate:asc
+Authorization: {{ token }}
+
+### 4.7 - Search Bookings
+GET http://localhost:3000/bookings/search?keyword=luxury&location=beach&minPrice=100&maxPrice=1000
+Authorization: {{ token }}
+
+### ================================
+### 5️⃣ OUTBOX MODULE - EVENT TRACKING & RETRY
+### ================================
+
+### 5.1 - Get All Outbox Events
+GET http://localhost:3000/outbox/events?page=1&limit=20&status=PENDING
+Authorization: {{ token }}
+
+### 5.2 - Retry Failed Event
+POST http://localhost:3000/outbox/events/{{ eventId }}/retry
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: retry-event-001-{{ $timestamp }}
+
+{
+  "reason": "Manual retry"
+}
+
+### 5.3 - Get Event Details
+GET http://localhost:3000/outbox/events/{{ eventId }}
+Authorization: {{ token }}
+
+### 5.4 - List Events by Type
+GET http://localhost:3000/outbox/events?eventType=booking.cancelled&limit=50
+Authorization: {{ token }}
+
+### 5.5 - Trigger Dead Letter Queue Retry (Admin)
+POST http://localhost:3000/outbox/retry-dlq
+Authorization: {{ token }}
+Content-Type: application/json
+
+{
+  "maxRetries": 3
+}
+
+### ================================
+### 6️⃣ IDEMPOTENCY TESTING
+### ================================
+
+### 6.1 - Create Booking with Idempotency (Success)
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: idempotent-booking-001
+
+{
+  "propertyId": "property-id-456",
+  "checkInDate": "2025-12-01T14:00:00Z",
+  "checkOutDate": "2025-12-05T11:00:00Z",
+  "numberOfGuests": 4,
+  "specialRequests": "Beach view preferred"
+}
+
+### 6.2 - Retry Same Request with Same Idempotency-Key
+### Expected: Returns same response without creating duplicate booking
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: idempotent-booking-001
+
+{
+  "propertyId": "property-id-456",
+  "checkInDate": "2025-12-01T14:00:00Z",
+  "checkOutDate": "2025-12-05T11:00:00Z",
+  "numberOfGuests": 4,
+  "specialRequests": "Beach view preferred"
+}
+
+### 6.3 - Retry with Different Payload (Should Fail)
+### Expected: 422 Unprocessable Entity - Idempotency-Key reused with different payload
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: idempotent-booking-001
+
+{
+  "propertyId": "property-id-789",
+  "checkInDate": "2025-12-10T14:00:00Z",
+  "checkOutDate": "2025-12-15T11:00:00Z",
+  "numberOfGuests": 2,
+  "specialRequests": "Mountain view"
+}
+
+### ================================
+### 7️⃣ ERROR HANDLING & EDGE CASES
+### ================================
+
+### 7.1 - Missing Required Field
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: error-test-001-{{ $timestamp }}
+
+{
+  "propertyId": "property-id-123",
+  "checkInDate": "2025-11-15T14:00:00Z"
+}
+
+### Expected Response:
+### {
+###   "statusCode": 400,
+###   "message": ["numberOfGuests should not be empty"],
+###   "error": "Bad Request"
+### }
+
+### 7.2 - Unauthorized Access
+GET http://localhost:3000/bookings/{{ bookingId }}
+
+### Expected Response: 401 Unauthorized
+
+### 7.3 - Invalid Date Range
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: error-test-002-{{ $timestamp }}
+
+{
+  "propertyId": "property-id-123",
+  "checkInDate": "2025-11-20T14:00:00Z",
+  "checkOutDate": "2025-11-15T11:00:00Z",
+  "numberOfGuests": 2
+}
+
+### 7.4 - Not Found
+GET http://localhost:3000/bookings/invalid-id-xyz
+Authorization: {{ token }}
+
+### Expected Response: 404 Not Found
+
+### ================================
+### 8️⃣ PAGINATION & FILTERING
+### ================================
+
+### 8.1 - Default Pagination
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+
+### 8.2 - Custom Page and Limit
+GET http://localhost:3000/bookings?page=2&limit=25
+Authorization: {{ token }}
+
+### 8.3 - Sorting
+GET http://localhost:3000/bookings?sort=totalPrice:desc,checkInDate:asc
+Authorization: {{ token }}
+
+### 8.4 - Filtering by Status
+GET http://localhost:3000/bookings?status=CONFIRMED&status=PENDING
+Authorization: {{ token }}
+
+### 8.5 - Search + Filter + Sort + Paginate
+GET http://localhost:3000/bookings?keyword=luxury&status=CONFIRMED&minPrice=500&maxPrice=5000&sort=totalPrice:asc&page=1&limit=10
+Authorization: {{ token }}
+
+### ================================
+### 9️⃣ PERFORMANCE & MONITORING
+### ================================
+
+### 9.1 - Health Check
+GET http://localhost:3000/health
+
+### 9.2 - Metrics Endpoint
+GET http://localhost:3000/metrics
+
+### 9.3 - Application Info
+GET http://localhost:3000/
+
+### ================================
+### 🔟 RATE LIMITING TEST
+### ================================
+
+### 10.1 - Multiple Rapid Requests (Test Rate Limiting)
+### Make 10 requests in a row, 11th should be rate limited
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+
+### Expected on 11th+: 429 Too Many Requests
+
+### ================================
+### 1️⃣1️⃣ SAGA COMPENSATION TESTING
+### ================================
+
+### Scenario 1: Successful Cancellation Saga
+### 11.1 - Create booking
+POST http://localhost:3000/bookings
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: saga-test-booking-001-{{ $timestamp }}
+
+{
+  "propertyId": "property-id-saga",
+  "checkInDate": "2025-12-15T14:00:00Z",
+  "checkOutDate": "2025-12-20T11:00:00Z",
+  "numberOfGuests": 2
+}
+
+### 11.2 - Confirm booking
+PATCH http://localhost:3000/bookings/{{ bookingId }}/confirm
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: saga-confirm-booking-001-{{ $timestamp }}
+
+{
+  "paymentDetails": {
+    "amount": 750.00,
+    "currency": "USD",
+    "method": "credit_card"
+  }
+}
+
+### 11.3 - Cancel with Saga Execution
+PATCH http://localhost:3000/bookings/{{ bookingId }}/cancel
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: saga-cancel-booking-001-{{ $timestamp }}
+
+{
+  "reason": "Saga compensation test",
+  "requestRefund": true
+}
+
+### SAGA EXECUTION TRACE:
+###   ✅ Step 1: releaseInventory - SUCCESS
+###   ✅ Step 2: processRefund - SUCCESS
+###   ✅ Step 3: sendCancellationEmail - SUCCESS (optional)
+###   ✅ Step 4: updateBookingStatus - SUCCESS
+###
+### EVENTS CREATED:
+###   - booking.cancelled event
+###   - outbox entry with PENDING status
+###   - event dispatcher picks it up in background
+###   - event handler fires (email, logging, etc.)
+###   - outbox status updates to SENT
+
+### ================================
+### 1️⃣2️⃣ OUTBOX & EVENT HANDLER FLOW
+### ================================
+
+### Event Types Supported:
+###   - booking.created
+###   - booking.confirmed
+###   - booking.cancelled
+###   - booking.refunded
+###   - booking.completed
+###   - user.created
+###   - user.email_verified
+###   - user.password_reset
+
+### 12.1 - Monitor Outbox Events
+GET http://localhost:3000/outbox/events?limit=50
+Authorization: {{ token }}
+
+### Expected Response Fields:
+### {
+###   "id": "event-id",
+###   "eventType": "booking.cancelled",
+###   "payload": {...},
+###   "status": "PENDING" | "ENQUEUED" | "SENT" | "FAILED",
+###   "retryCount": 0,
+###   "createdAt": "2025-10-26T...",
+###   "sentAt": null
+### }
+
+### 12.2 - Manual Event Retry
+POST http://localhost:3000/outbox/events/{{ eventId }}/retry
+Authorization: {{ token }}
+Content-Type: application/json
+Idempotency-Key: manual-retry-001-{{ $timestamp }}
+
+{
+  "reason": "Manual retry after handler fix"
+}
+
+### ================================
+### 1️⃣3️⃣ PERFORMANCE OPTIMIZATION TIPS
+### ================================
+
+### Tip 1: Use Selective Field Retrieval
+GET http://localhost:3000/bookings?fields=id,totalPrice,status
+Authorization: {{ token }}
+
+### Tip 2: Filter Early (Server-side)
+GET http://localhost:3000/bookings?status=CONFIRMED
+Authorization: {{ token }}
+
+### Tip 3: Batch Operations
+POST http://localhost:3000/bookings/batch
+Authorization: {{ token }}
+Content-Type: application/json
+
+{
+  "operations": [
+    {
+      "method": "GET",
+      "endpoint": "/bookings/id-1"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/bookings/id-2"
+    }
+  ]
+}
+
+### Tip 4: Cache Results
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+Cache-Control: max-age=300
+
+### Tip 5: Use Compression
+GET http://localhost:3000/bookings
+Authorization: {{ token }}
+Accept-Encoding: gzip, deflate
+
+### ================================
+### 1️⃣4️⃣ MONITORING & DEBUGGING
+### ================================
+
+### 14.1 - Check Application Logs
+### Terminal: npm run start:dev
+
+### 14.2 - Database Queries
+### Use Prisma Studio to inspect data:
+### Command: npx prisma studio
+
+### 14.3 - Check Event Processing
+### Logs will show:
+### "[SagaId] Starting saga: BookingCancellationSaga"
+### "[SagaId] Executing step: releaseInventory"
+### "[SagaId] Step completed: releaseInventory"
+
+### 14.4 - Verify Outbox Entries
+### SELECT * FROM outbox_events ORDER BY created_at DESC LIMIT 20;
+
+### ================================
+### 1️⃣5️⃣ QUICK TEST SCENARIOS
+### ================================
+
+### Scenario A: Happy Path
+### 1. Register user
+### 2. Login
+### 3. Create booking
+### 4. Confirm booking
+### 5. Verify outbox events created
+### 6. Wait for event handlers
+### 7. Verify booking status updated
+
+### Scenario B: Error Handling
+### 1. Try invalid payload
+### 2. Verify 400 Bad Request
+### 3. Check error message format
+### 4. Verify idempotency key preserved
+
+### Scenario C: Idempotency
+### 1. Create booking with Idempotency-Key
+### 2. Retry with same Idempotency-Key
+### 3. Verify same response (no duplicate)
+### 4. Retry with different payload
+### 5. Verify 422 Unprocessable Entity
+
+### Scenario D: Saga Compensation
+### 1. Create booking
+### 2. Confirm booking
+### 3. Cancel booking
+### 4. Monitor logs for saga steps
+### 5. Check database: booking status = REFUNDED
+### 6. Verify outbox event: booking.cancelled
+### 7. Check email sent (if configured)
+
+### ================================
+### 📊 RESPONSE TIME EXPECTATIONS
+### ================================
+
+### GET Endpoints:
+### - Single resource: < 50ms
+### - List with pagination: < 200ms
+### - Search with filter: < 500ms
+
+### POST Endpoints:
+### - Create booking: 100-300ms (includes saga)
+### - Upload file: depends on file size
+### - Register user: 150-250ms
+
+### PATCH Endpoints:
+### - Cancel booking (saga): 200-500ms
+### - Update profile: 50-150ms
+
+### ================================
+### 🔐 SECURITY HEADERS
+### ================================
+
+### All requests should include:
+Authorization: Bearer {{ token }}
+
+### Recommended headers:
+Content-Type: application/json
+Idempotency-Key: {{ requestId }}-{{ $timestamp }}
+User-Agent: Booking-Client/1.0
+X-Request-ID: {{ requestId }}
+
+### ================================
+### 📝 NOTES & BEST PRACTICES
+### ================================
+
+### ✅ DO:
+### - Always use Idempotency-Key for POST/PATCH
+### - Include Authorization header
+### - Use appropriate pagination (limit ≤ 100)
+### - Check HTTP status codes in response
+### - Handle rate limiting (429) gracefully
+
+### ❌ DON'T:
+### - Reuse Idempotency-Key across different operations
+### - Make unbounded queries (no pagination)
+### - Ignore error responses
+### - Retry immediately on failure
+### - Store sensitive data in logs
+
+### ================================
+### 🚀 DEPLOYMENT CHECKLIST
+### ================================
+
+### Pre-deployment:
+### ✅ All tests passing
+### ✅ Build succeeds
+### ✅ No TypeScript errors
+### ✅ Environment variables configured
+### ✅ Database migrations run
+### ✅ Rate limiting configured
+### ✅ Logging configured
+
+### Post-deployment:
+### ✅ Health check passes
+### ✅ Database connection verified
+### ✅ Redis connection verified
+### ✅ Event handlers registered
+### ✅ Outbox dispatcher running
+### ✅ Scheduled tasks working
+### ✅ Monitoring alerts active

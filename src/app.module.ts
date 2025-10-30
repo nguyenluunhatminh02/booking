@@ -32,6 +32,21 @@ import { BookingModule } from './modules/booking/booking.module';
 import { QueueModule } from './core/queue/queue.module';
 import { TasksModule } from './core/tasks/tasks.module';
 import { OutboxProcessorModule } from './modules/outbox/outbox-processor.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PermissionsGuard } from './modules/rbac/guards/permissions.guard';
+import { RoleGuard } from './modules/rbac/guards/role.guard';
+import { RedisModule } from './common/redis.module';
+import { PropertyModule } from './modules/property/property.module';
+import { ReviewModule } from './modules/review/review.module';
+import { IdempotencyModule } from './modules/idempotency/idempotency.module';
+import { SecurityEventsModule } from './modules/security-events/security-events.module';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { MailerModule } from './modules/mailer/mailer.module';
+import { SagasModule } from './core/sagas/sagas.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { CachingModule } from './common/caching/caching.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 const backgroundJobsEnabled =
   process.env.ENABLE_BACKGROUND_JOBS === 'true' ||
@@ -76,7 +91,10 @@ const backgroundJobsEnabled =
       },
     }),
     PrismaModule,
+    RedisModule, // Global Redis module
+    CachingModule, // Global caching infrastructure
     RateLimitModule,
+    SagasModule, // Saga pattern for distributed transactions
     // Background Jobs & Scheduling (enable when Redis/queues are configured)
     ...(backgroundJobsEnabled
       ? [QueueModule, TasksModule, OutboxProcessorModule]
@@ -90,12 +108,34 @@ const backgroundJobsEnabled =
     AclModule,
     OutboxModule,
     BookingModule,
+    PropertyModule,
+    ReviewModule,
+    IdempotencyModule,
+    SecurityEventsModule,
+    AuditLogModule,
+    InvoiceModule,
+    MailerModule,
+    NotificationsModule,
+    PaymentModule, // Payment processing with timeout jobs
   ],
   controllers: [AppController],
   providers: [
+    // Global Guards (order matters!)
     {
       provide: APP_GUARD,
-      useClass: CustomThrottlerGuard,
+      useClass: CustomThrottlerGuard, // 1. Rate limiting first
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // 2. Authentication (can be skipped with @Public())
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard, // 3. Permission-based authorization
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RoleGuard, // 4. Role-based authorization
     },
     AppService,
     AclGuard, // Register AclGuard as provider for DI

@@ -1,8 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { TooManyRequestsFilter } from './common/filters/too-many-requests.filter';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
@@ -11,8 +10,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import compression from 'compression';
-import { useContainer } from 'class-validator';
-import { HttpExceptionFilter, PrismaClientExceptionFilter } from './common';
 import { makeZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 async function bootstrap() {
@@ -33,7 +30,6 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       bufferLogs: true,
     });
-    useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
     // Use Pino Logger
     app.useLogger(app.get(Logger));
@@ -74,14 +70,8 @@ async function bootstrap() {
       app.get(SlowRequestInterceptor), // Slow request monitoring
     );
 
-    // Global filters (order matters - most specific first)
-    // Ensure specialized filters run before the catch-all AllExceptionsFilter
-    app.useGlobalFilters(
-      new PrismaClientExceptionFilter(),
-      new TooManyRequestsFilter(),
-      new HttpExceptionFilter(),
-      new AllExceptionsFilter(),
-    );
+    // Global unified exception filter
+    app.useGlobalFilters(new GlobalExceptionFilter());
 
     // CORS configuration
     app.enableCors({

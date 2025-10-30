@@ -20,26 +20,34 @@ export class AclService {
       throw new NotFoundException(`User with ID "${dto.userId}" not found`);
     }
 
-    return this.prisma.resourceACL.upsert({
+    // Find existing ACL
+    const existing = await this.prisma.resourceACL.findFirst({
       where: {
-        user_resource_action_unique: {
-          userId: dto.userId,
-          resourceType: dto.resourceType,
-          resourceId: dto.resourceId,
-          action: dto.action,
-        },
-      },
-      update: {
-        effect: dto.effect,
-        conditions: dto.conditions,
-      },
-      create: {
         userId: dto.userId,
         resourceType: dto.resourceType,
         resourceId: dto.resourceId,
-        action: dto.action,
+      },
+    });
+
+    if (existing) {
+      return this.prisma.resourceACL.update({
+        where: { id: existing.id },
+        data: {
+          permissions: dto.action ? [dto.action] : [],
+          effect: dto.effect,
+          conditions: dto.conditions as any,
+        },
+      });
+    }
+
+    return this.prisma.resourceACL.create({
+      data: {
+        userId: dto.userId,
+        resourceType: dto.resourceType,
+        resourceId: dto.resourceId,
+        permissions: dto.action ? [dto.action] : [],
         effect: dto.effect,
-        conditions: dto.conditions,
+        conditions: dto.conditions as any,
       },
     });
   }
@@ -47,20 +55,12 @@ export class AclService {
   /**
    * Thu hồi quyền truy cập
    */
-  async revokeAccess(
-    userId: string,
-    resourceType: string,
-    resourceId: string,
-    action: string,
-  ) {
-    const acl = await this.prisma.resourceACL.findUnique({
+  async revokeAccess(userId: string, resourceType: string, resourceId: string) {
+    const acl = await this.prisma.resourceACL.findFirst({
       where: {
-        user_resource_action_unique: {
-          userId,
-          resourceType,
-          resourceId,
-          action,
-        },
+        userId,
+        resourceType,
+        resourceId,
       },
     });
 
@@ -69,14 +69,7 @@ export class AclService {
     }
 
     return this.prisma.resourceACL.delete({
-      where: {
-        user_resource_action_unique: {
-          userId,
-          resourceType,
-          resourceId,
-          action,
-        },
-      },
+      where: { id: acl.id },
     });
   }
 
@@ -84,14 +77,11 @@ export class AclService {
    * Kiểm tra user có quyền truy cập tài nguyên không
    */
   async checkAccess(dto: CheckAccessDto): Promise<boolean> {
-    const acl = await this.prisma.resourceACL.findUnique({
+    const acl = await this.prisma.resourceACL.findFirst({
       where: {
-        user_resource_action_unique: {
-          userId: dto.userId,
-          resourceType: dto.resourceType,
-          resourceId: dto.resourceId,
-          action: dto.action,
-        },
+        userId: dto.userId,
+        resourceType: dto.resourceType,
+        resourceId: dto.resourceId,
       },
     });
 
@@ -136,21 +126,16 @@ export class AclService {
   /**
    * Lấy tất cả tài nguyên mà user có quyền truy cập
    */
-  async findUserResources(
-    userId: string,
-    resourceType: string,
-    action: string,
-  ) {
+  async findUserResources(userId: string, resourceType: string) {
     return this.prisma.resourceACL.findMany({
       where: {
         userId,
         resourceType,
-        action,
         effect: ACLEffect.ALLOW,
       },
       select: {
         resourceId: true,
-        action: true,
+        permissions: true,
       },
       distinct: ['resourceId'],
     });
@@ -221,8 +206,9 @@ export class AclService {
 
       if (typeof rule === 'object' && rule !== null) {
         // Hỗ trợ operators
-
-        for (const [operator, value] of Object.entries(rule)) {
+        for (const [operator, value] of Object.entries(
+          rule as Record<string, unknown>,
+        )) {
           if (!this.evaluateOperator(operator, contextValue, value)) {
             return false;
           }

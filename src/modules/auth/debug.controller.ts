@@ -1,7 +1,15 @@
 import { Body, BadRequestException, Controller, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiTags } from '@nestjs/swagger';
 import { EmailService } from '@/common/services';
+import {
+  ApiOperationDecorator,
+  ApiResponseType,
+  Public,
+} from '@/common/decorators';
 
+@ApiTags('Debug - Email')
+@Public()
 @Controller('debug/email')
 export class DebugEmailController {
   constructor(
@@ -10,6 +18,12 @@ export class DebugEmailController {
   ) {}
 
   @Post('test')
+  @ApiOperationDecorator({
+    summary: 'Send test email (debug only)',
+    description:
+      'Send a test email - only available in development environment',
+    exclude: [ApiResponseType.Unauthorized],
+  })
   async sendTest(
     @Body() body: { to?: string; subject?: string; html?: string },
   ) {

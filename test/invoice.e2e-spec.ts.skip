@@ -1,0 +1,256 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { InvoiceController } from '../src/modules/invoice/invoice.controller';
+import { InvoiceService } from '../src/modules/invoice/invoice.service';
+import { AppModule } from '../src/app.module';
+
+describe('InvoiceController (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let invoiceService: InvoiceService;
+
+  let testUser: any;
+  let testProperty: any;
+  let testBooking: any;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    invoiceService = moduleFixture.get<InvoiceService>(InvoiceService);
+
+    await app.init();
+
+    // Create test data
+    testUser = await prisma.user.create({
+      data: {
+        email: 'invoice@test.com',
+        password: 'hashed',
+        firstName: 'Invoice',
+        lastName: 'Test',
+      },
+    });
+
+    testProperty = await prisma.property.create({
+      data: {
+        name: 'Test Property',
+        address: 'Address',
+        city: 'City',
+        country: 'Country',
+        pricePerNight: 100,
+        maxGuests: 4,
+        bedroomCount: 2,
+        bathroomCount: 1,
+      },
+    });
+
+    testBooking = await prisma.propertyBooking.create({
+      data: {
+        propertyId: testProperty.id,
+        userId: testUser.id,
+        checkInDate: new Date('2025-11-01'),
+        checkOutDate: new Date('2025-11-05'),
+        totalPrice: 400,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.invoice.deleteMany();
+    await prisma.propertyBooking.deleteMany();
+    await prisma.property.deleteMany();
+    await prisma.user.deleteMany();
+
+    if (app) {
+      await app.close();
+    }
+  });
+
+  afterEach(async () => {
+    await prisma.invoice.deleteMany();
+  });
+
+  describe('POST /invoices', () => {
+    it('should create a new invoice', async () => {
+      const createDto = {
+        bookingId: testBooking.id,
+        amount: 400,
+        currency: 'USD',
+        items: [
+          {
+            description: 'Accommodation (4 nights)',
+            amount: 400,
+          },
+        ],
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .post('/invoices')
+        .set('Authorization', `Bearer test-token`)
+        .send(createDto)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.amount).toBe(400);
+      expect(response.body.currency).toBe('USD');
+    });
+
+    it('should fail with invalid amount', async () => {
+      const invalidDto = {
+        bookingId: testBooking.id,
+        amount: -100, // Invalid - negative
+        currency: 'USD',
+      };
+
+      await request(app.getHttpServer() as unknown as App)
+        .post('/invoices')
+        .set('Authorization', `Bearer test-token`)
+        .send(invalidDto)
+        .expect(400);
+    });
+  });
+
+  describe('GET /invoices', () => {
+    it('should list all invoices', async () => {
+      // Create test invoices
+      await prisma.invoice.createMany({
+        data: [
+          {
+            bookingId: testBooking.id,
+            amount: 400,
+            currency: 'USD',
+          },
+          {
+            bookingId: testBooking.id,
+            amount: 50,
+            currency: 'USD',
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/invoices?page=1&limit=10')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should filter invoices by status', async () => {
+      await prisma.invoice.createMany({
+        data: [
+          {
+            bookingId: testBooking.id,
+            amount: 400,
+            currency: 'USD',
+            status: 'PAID',
+          },
+          {
+            bookingId: testBooking.id,
+            amount: 50,
+            currency: 'USD',
+            status: 'PENDING',
+          },
+        ],
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get('/invoices?status=PAID')
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+  });
+
+  describe('GET /invoices/:id', () => {
+    it('should retrieve an invoice by id', async () => {
+      const invoice = await prisma.invoice.create({
+        data: {
+          bookingId: testBooking.id,
+          amount: 400,
+          currency: 'USD',
+        },
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .get(`/invoices/${invoice.id}`)
+        .expect(200);
+
+      expect(response.body.id).toBe(invoice.id);
+      expect(response.body.amount).toBe(400);
+    });
+  });
+
+  describe('POST /invoices/:id/generate-pdf', () => {
+    it('should generate PDF for an invoice', async () => {
+      const invoice = await prisma.invoice.create({
+        data: {
+          bookingId: testBooking.id,
+          amount: 400,
+          currency: 'USD',
+        },
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .post(`/invoices/${invoice.id}/generate-pdf`)
+        .set('Authorization', `Bearer test-token`)
+        .expect(200);
+
+      // Should return PDF buffer or stream
+      expect(response.body).toBeDefined();
+    });
+  });
+
+  describe('POST /invoices/:id/send-email', () => {
+    it('should send invoice via email', async () => {
+      const invoice = await prisma.invoice.create({
+        data: {
+          bookingId: testBooking.id,
+          amount: 400,
+          currency: 'USD',
+        },
+      });
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .post(`/invoices/${invoice.id}/send-email`)
+        .set('Authorization', `Bearer test-token`)
+        .send({ to: testUser.email })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success');
+    });
+  });
+
+  describe('PATCH /invoices/:id', () => {
+    it('should update invoice status', async () => {
+      const invoice = await prisma.invoice.create({
+        data: {
+          bookingId: testBooking.id,
+          amount: 400,
+          currency: 'USD',
+          status: 'PENDING',
+        },
+      });
+
+      const updateDto = {
+        status: 'PAID',
+      };
+
+      const response = await request(app.getHttpServer() as unknown as App)
+        .patch(`/invoices/${invoice.id}`)
+        .set('Authorization', `Bearer test-token`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.status).toBe('PAID');
+    });
+  });
+});
