@@ -21,8 +21,8 @@ import {
 import { CreateRefundInput, createRefundSchema } from './dto/create-refund.dto';
 
 // Legacy interfaces for backwards compatibility
-export interface CreateIntentDto extends CreatePaymentIntentInput {}
-export interface RefundDto extends CreateRefundInput {}
+export type CreateIntentDto = CreatePaymentIntentInput;
+export type RefundDto = CreateRefundInput;
 
 function pickProvider(name?: string): string {
   const n = (name || process.env.PAYMENT_PROVIDER || 'MOCK').toUpperCase();
